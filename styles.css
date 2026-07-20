@@ -293,6 +293,22 @@ footer .disclaimer {
   margin: 10px 0;
 }
 
+.archive-month {
+  margin-bottom: 34px;
+  padding-bottom: 8px;
+  border-bottom: 3px double #111111;
+}
+
+.archive-month h2 {
+  font-family: "Arial Black", Arial, Helvetica, sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: #111111;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+}
+
 .archive-day {
   margin-bottom: 26px;
 }
