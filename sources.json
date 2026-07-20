@@ -1,0 +1,64 @@
+{
+  "updated": "2026-07-20",
+  "approved": [
+    { "name": "Reuters", "domain": "reuters.com", "category": "Newswire" },
+    { "name": "Associated Press", "domain": "apnews.com", "category": "Newswire" },
+    { "name": "Axios", "domain": "axios.com", "category": "Newswire" },
+    { "name": "NPR", "domain": "npr.org", "category": "Newswire" },
+    { "name": "Al Jazeera", "domain": "aljazeera.com", "category": "Newswire" },
+    { "name": "CNN", "domain": "cnn.com", "category": "Newswire" },
+
+    { "name": "OpenAI", "domain": "openai.com", "category": "Primary Source" },
+    { "name": "Anthropic", "domain": "anthropic.com", "category": "Primary Source" },
+    { "name": "Google AI / DeepMind", "domain": "blog.google, deepmind.google", "category": "Primary Source" },
+    { "name": "Meta AI", "domain": "ai.meta.com", "category": "Primary Source" },
+    { "name": "Microsoft", "domain": "blogs.microsoft.com", "category": "Primary Source" },
+    { "name": "Nvidia", "domain": "blogs.nvidia.com", "category": "Primary Source" },
+    { "name": "xAI", "domain": "x.ai", "category": "Primary Source" },
+
+    { "name": "TechCrunch", "domain": "techcrunch.com", "category": "Tech & Business Press" },
+    { "name": "The Verge", "domain": "theverge.com", "category": "Tech & Business Press" },
+    { "name": "Ars Technica", "domain": "arstechnica.com", "category": "Tech & Business Press" },
+    { "name": "CNBC", "domain": "cnbc.com", "category": "Tech & Business Press" },
+    { "name": "VentureBeat", "domain": "venturebeat.com", "category": "Tech & Business Press" },
+    { "name": "ZDNet", "domain": "zdnet.com", "category": "Tech & Business Press" },
+    { "name": "Engadget", "domain": "engadget.com", "category": "Tech & Business Press" },
+    { "name": "9to5Mac / 9to5Google", "domain": "9to5mac.com, 9to5google.com", "category": "Tech & Business Press" },
+    { "name": "SiliconANGLE", "domain": "siliconangle.com", "category": "Tech & Business Press" },
+    { "name": "Tom's Hardware", "domain": "tomshardware.com", "category": "Tech & Business Press" },
+    { "name": "MacRumors", "domain": "macrumors.com", "category": "Tech & Business Press" },
+    { "name": "TechRepublic", "domain": "techrepublic.com", "category": "Tech & Business Press" },
+    { "name": "Fortune", "domain": "fortune.com", "category": "Tech & Business Press", "note": "Metered paywall; free articles generally available" },
+
+    { "name": "FTC.gov", "domain": "ftc.gov", "category": "Policy & Government" },
+    { "name": "Federal Register", "domain": "federalregister.gov", "category": "Policy & Government" },
+    { "name": "Tech Policy Press", "domain": "techpolicy.press", "category": "Policy & Government" },
+    { "name": "Council of the EU", "domain": "consilium.europa.eu", "category": "Policy & Government" },
+
+    { "name": "MarkTechPost", "domain": "marktechpost.com", "category": "AI Trade & Industry" },
+    { "name": "The New Stack", "domain": "thenewstack.io", "category": "AI Trade & Industry" },
+    { "name": "IT Pro", "domain": "itpro.com", "category": "AI Trade & Industry" }
+  ],
+  "pending_review": [
+    { "name": "BuildFastWithAI", "domain": "buildfastwithai.com", "reason": "Cited on-site; independent AI news blog, not yet vetted" },
+    { "name": "ThursdAI", "domain": "thursdai.news", "reason": "Cited on-site; community AI newsletter, not yet vetted" },
+    { "name": "AI Weekly", "domain": "aiweekly.co", "reason": "Cited on-site; AI news aggregator/newsletter, not yet vetted" },
+    { "name": "Memeburn", "domain": "memeburn.com", "reason": "Cited on-site; African tech publication, not yet vetted" },
+    { "name": "Dominant Digitally", "domain": "dominantdigitally.com", "reason": "Cited on-site; smaller AI blog, not yet vetted" },
+    { "name": "Introl", "domain": "introl.com", "reason": "Cited on-site; infrastructure company blog, not yet vetted" },
+    { "name": "AIToolsRecap", "domain": "aitoolsrecap.com", "reason": "Cited on-site; AI news blog, not yet vetted" },
+    { "name": "Tech Startups", "domain": "techstartups.com", "reason": "Cited on-site; independent tech blog, not yet vetted" },
+    { "name": "WTTW Chicago", "domain": "news.wttw.com", "reason": "Cited on-site; local PBS affiliate newsroom, likely approvable" },
+    { "name": "UN News", "domain": "news.un.org", "reason": "Cited on-site; UN official news service, likely approvable" },
+    { "name": "Marketing AI Institute", "domain": "marketingaiinstitute.com", "reason": "Cited on-site; industry blog, not yet vetted" }
+  ],
+  "excluded": [
+    { "name": "The New York Times", "domain": "nytimes.com", "reason": "Hard paywall" },
+    { "name": "The Wall Street Journal", "domain": "wsj.com", "reason": "Hard paywall" },
+    { "name": "Bloomberg", "domain": "bloomberg.com", "reason": "Hard paywall" },
+    { "name": "Financial Times", "domain": "ft.com", "reason": "Hard paywall" },
+    { "name": "MIT Technology Review", "domain": "technologyreview.com", "reason": "Hard paywall" },
+    { "name": "The Information", "domain": "theinformation.com", "reason": "Hard paywall" },
+    { "name": "The Economist", "domain": "economist.com", "reason": "Hard paywall" }
+  ]
+}
