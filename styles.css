@@ -12,11 +12,10 @@ body {
   line-height: 1.35;
 }
 
-body.bg-faded {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.90)), url("AInetWatchBackground.png");
-  background-size: 271px 265px;
-  background-position: center top;
-  background-attachment: fixed;
+.masthead.banner-bg {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.80), rgba(255, 255, 255, 0.80)), url("AInetWatchBanner.jpg");
+  background-size: cover;
+  background-position: center;
   background-repeat: no-repeat;
 }
 
@@ -43,7 +42,7 @@ a:hover {
 
 .masthead {
   border-bottom: 3px solid #111111;
-  padding: 10px 0 6px;
+  padding: 21px 0 14px;
 }
 
 .masthead-top {
@@ -344,7 +343,21 @@ footer .disclaimer {
 }
 
 @media (max-width: 800px) {
-  .columns { flex-direction: column; }
-  .logo { font-size: 36px; }
-  .top-story a { font-size: 24px; }
+  /* Columns stay side by side on mobile, Drudge-style — just tighten spacing */
+  .columns { gap: 10px; }
+  .col h2 { font-size: 10px; padding: 3px 5px; letter-spacing: 0.5px; }
+  .headline { font-size: 12px; margin-bottom: 10px; padding-bottom: 8px; }
+  .headline .src { font-size: 9px; }
+  .logo { font-size: 30px; }
+  .tagline { font-size: 11px; }
+  .top-story a { font-size: 20px; }
+  .wrap { padding: 0 8px; }
+}
+
+@media (max-width: 480px) {
+  .col h2 { font-size: 9px; padding: 3px 4px; }
+  .headline { font-size: 10.5px; }
+  .headline .src { font-size: 8px; }
+  .logo { font-size: 24px; }
+  .top-story a { font-size: 16px; }
 }
