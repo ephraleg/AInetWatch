@@ -26,7 +26,7 @@
     </div>
     <div class="meta-row wrap">
       <span id="current-date">—</span>
-      <span class="updated" id="last-updated">LAST UPDATED —</span>
+      <span class="updated" id="last-updated">LAST UPDATED 02-AUG-2026 11:37 ET</span>
     </div>
   </div>
 </header>
@@ -339,12 +339,10 @@
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
       timeZone: 'America/New_York'
     });
-    var timeStr = now.toLocaleTimeString('en-US', {
-      timeZone: 'America/New_York', timeZoneName: 'short'
-    });
     document.getElementById('current-date').textContent = dateStr;
-    document.getElementById('last-updated').textContent = 'LAST UPDATED ' + timeStr;
   }
+  // Note: #last-updated is a static, hand-set timestamp (see header markup above),
+  // updated manually whenever homepage content actually changes — NOT tied to this clock.
   updateClock();
   setInterval(updateClock, 1000);
 </script>
