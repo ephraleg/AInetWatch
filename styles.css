@@ -239,6 +239,16 @@ a:hover {
   color: #111111;
 }
 
+.developing .src {
+  display: inline-block;
+  font-size: 12px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  color: #777777;
+  margin-left: 6px;
+}
+
 /* ===== FOOTER ===== */
 
 footer {
