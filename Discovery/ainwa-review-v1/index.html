@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AINWA Review Console</title>
+<style>
+  :root{color-scheme:light dark;--bg:#f5f5f2;--panel:#fff;--text:#111;--muted:#666;--line:#d7d7d2;--soft:#efefeb;--focus:#111}
+  @media(prefers-color-scheme:dark){:root{--bg:#111;--panel:#191919;--text:#eee;--muted:#aaa;--line:#383838;--soft:#232323;--focus:#eee}}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  button,input,textarea,select{font:inherit;color:inherit} button{cursor:pointer}
+  header{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header strong{letter-spacing:.04em} .meta{font-size:12px;color:var(--muted)}
+  .shell{display:grid;grid-template-columns:260px minmax(0,1fr);height:calc(100vh - 52px)}
+  aside{border-right:1px solid var(--line);overflow:auto;background:var(--panel)}
+  .queue-title{padding:12px 14px;font-weight:700;border-bottom:1px solid var(--line)}
+  .candidate{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:12px 14px}
+  .candidate:hover,.candidate.active{background:var(--soft)} .candidate .rank{font-size:11px;color:var(--muted);text-transform:uppercase}
+  .candidate .ch{font-weight:700;margin:3px 0}.candidate .src{font-size:12px;color:var(--muted)}
+  main{overflow:auto;padding:18px}.empty{max-width:680px;margin:12vh auto;text-align:center;color:var(--muted)}
+  .review{max-width:1000px;margin:0 auto}.topline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+  .tag{border:1px solid var(--line);border-radius:999px;padding:2px 7px;font-size:11px;color:var(--muted)} .tag.paywall{font-weight:700;color:var(--text)}
+  .source-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .source-row a{color:inherit;font-weight:700}.original{font-size:18px;margin:14px 0;color:var(--muted)}
+  h1{font:800 30px/1.12 Georgia,serif;margin:8px 0 15px}.section{margin-top:18px}.label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  ul{padding-left:21px}.summary li{margin:7px 0}.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:16px}.fact{border:1px solid var(--line);padding:9px;border-radius:5px}.fact span{display:block;font-size:11px;color:var(--muted)}
+  .note{padding:10px 12px;border-left:3px solid var(--line);background:var(--soft);margin-top:12px}
+  .actions{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:24px -18px -18px;padding:12px 18px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--panel) 94%,transparent)}
+  .actions button{border:1px solid var(--line);background:var(--panel);padding:8px 12px;border-radius:5px;font-weight:700}.actions .primary{background:var(--text);color:var(--panel);border-color:var(--text)}
+  .actions .spacer{flex:1}.keys{font-size:11px;color:var(--muted)}
+  dialog{border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--text);width:min(680px,92vw);padding:0;box-shadow:0 12px 60px #0005} dialog::backdrop{background:#0008}
+  .dialog-head{padding:14px 16px;border-bottom:1px solid var(--line);font-weight:800}.dialog-body{padding:16px}.dialog-foot{padding:12px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+  label{display:block;font-size:12px;font-weight:700;margin:10px 0 4px} input,textarea,select{width:100%;border:1px solid var(--line);background:var(--panel);padding:8px;border-radius:4px} textarea{min-height:120px;resize:vertical}
+  .checks{display:flex;gap:16px;margin-top:12px}.checks label{display:flex;gap:6px;align-items:center;margin:0}.checks input{width:auto}
+  .toast{position:fixed;right:16px;top:64px;background:var(--text);color:var(--panel);padding:9px 12px;border-radius:5px;display:none}
+  @media(max-width:760px){.shell{grid-template-columns:1fr;display:block}aside{height:180px;border-right:0;border-bottom:1px solid var(--line)}main{height:calc(100vh - 232px)}.facts{grid-template-columns:1fr 1fr}h1{font-size:25px}.keys{display:none}}
+</style>
+</head>
+<body>
+<header><strong>AINWA REVIEW</strong><div class="meta" id="statusLine">Loading…</div></header>
+<div class="shell">
+  <aside><div class="queue-title">Candidate Queue · max 12</div><div id="queue"></div></aside>
+  <main id="main"><div class="empty">Loading candidate queue…</div></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<dialog id="editDialog">
+  <div class="dialog-head">Edit & Approve</div>
+  <div class="dialog-body">
+    <label for="editHeadline">Headline</label><input id="editHeadline">
+    <label for="editSummary">Summary — one bullet per line</label><textarea id="editSummary"></textarea>
+    <label for="editCategory">Category</label><input id="editCategory">
+    <label for="editPriority">Priority</label><input id="editPriority">
+    <div class="checks"><label><input type="checkbox" id="editTop"> Top story</label><label><input type="checkbox" id="editDeveloping"> Developing</label><label><input type="checkbox" id="editPaywall"> Paywall</label></div>
+  </div>
+  <div class="dialog-foot"><button onclick="editDialog.close()">Cancel</button><button class="primary" onclick="submitEditApprove()">Approve edited</button></div>
+</dialog>
+
+<dialog id="rejectDialog">
+  <div class="dialog-head">Reject candidate</div>
+  <div class="dialog-body"><label for="rejectReason">Reason</label><select id="rejectReason"><option>duplicate</option><option>low importance</option><option>weak source</option><option>too old</option><option>not AI-relevant</option><option>already covered</option><option>other</option></select></div>
+  <div class="dialog-foot"><button onclick="rejectDialog.close()">Cancel</button><button onclick="submitReject()">Reject</button></div>
+</dialog>
+
+<dialog id="snoozeDialog">
+  <div class="dialog-head">Snooze candidate</div>
+  <div class="dialog-body"><label for="snoozeUntil">Revisit</label><select id="snoozeUntil"><option value="2h">In 2 hours</option><option value="4h">In 4 hours</option><option value="tomorrow">Tomorrow</option><option value="developing">Until next discovery run</option></select><label for="snoozeReason">Note</label><input id="snoozeReason" placeholder="Optional"></div>
+  <div class="dialog-foot"><button onclick="snoozeDialog.close()">Cancel</button><button onclick="submitSnooze()">Snooze</button></div>
+</dialog>
+
+<script>
+let state={candidates:[],approved_count:0,queue_total:0};let selected=0;let csrfToken=null;let stateError=null;
+const q=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Mirrors server-side is_http_url() (finding #1): only http(s) URLs are ever
+// rendered as a clickable link, so a javascript:/data:/etc. source URL can
+// never execute — this is defense in depth on top of the server already
+// stripping non-http(s) URLs before they reach this response at all.
+function isHttpUrl(u){if(typeof u!=='string'||!u)return false;try{const p=new URL(u,location.href);return p.protocol==='http:'||p.protocol==='https:'}catch{return false}}
+function sourceOf(c){return c.source||c.primary_source||{}}
+function proposalOf(c){return c.proposal||{headline:c.ainetwatch_headline||c.proposed_headline||'',summary:c.summary||[],category:c.category||'',priority:c.priority||c.priority_score||'',top_story:c.top_story||false,developing:c.developing||false,why_selected:c.claude_rationale||c.selection_rationale||'',duplicate_note:c.duplicate_note||c.corroboration||''}}
+function summaryOf(p){const s=p.summary||[];return Array.isArray(s)?s:[s]}
+function notify(t){q('toast').textContent=t;q('toast').style.display='block';setTimeout(()=>q('toast').style.display='none',1500)}
+async function load(){
+  const r=await fetch('/api/state',{cache:'no-store'});
+  const body=await r.json().catch(()=>({error:'Invalid response from server'}));
+  if(!r.ok){
+    // Finding #6/#7: a malformed data file or duplicate candidate IDs must
+    // be shown as a clear error, never rendered as "queue is clear".
+    stateError=body.error||`Server returned ${r.status}`;
+    state={candidates:[],approved_count:0,queue_total:0};
+    csrfToken=null;
+    render();
+    return;
+  }
+  stateError=null;
+  state=body;
+  csrfToken=body.csrf_token||null;
+  if(selected>=state.candidates.length)selected=Math.max(0,state.candidates.length-1);
+  render();
+}
+function render(){
+  if(stateError){
+    q('statusLine').textContent='Error';
+    q('queue').innerHTML='';
+    q('main').innerHTML=`<div class="empty"><h2>Data error — review is blocked</h2><p>${esc(stateError)}</p><p>Fix the underlying file, then reload this page. No review actions can be taken until this is resolved.</p></div>`;
+    return;
+  }
+  q('statusLine').textContent=`${state.candidates.length} active · ${state.approved_count} approved`;q('queue').innerHTML=state.candidates.map((c,i)=>{const p=proposalOf(c),s=sourceOf(c);return `<button class="candidate ${i===selected?'active':''}" onclick="selectCandidate(${i})"><div class="rank">#${i+1} · ${esc(p.priority||'')}</div><div class="ch">${esc(p.headline||c.original_headline||'Untitled')}</div><div class="src">${esc(s.name||'')}</div></button>`}).join('');
+ if(!state.candidates.length){q('main').innerHTML='<div class="empty"><h2>Review queue is clear.</h2><p>Add candidates to <code>data/candidate-queue.json</code> and refresh.</p></div>';return} renderCandidate(state.candidates[selected]);}
+function selectCandidate(i){selected=i;render()}
+function renderCandidate(c){const s=sourceOf(c),p=proposalOf(c),sum=summaryOf(p),pay=!!(s.paywall||c.paywall||c.paywall_status==='paywall');q('main').innerHTML=`<article class="review"><div class="topline"><span class="tag">${esc(s.role||s.source_type||'')}</span><span class="tag">${esc(s.reliability||'')}</span>${pay?'<span class="tag paywall">PAYWALL</span>':''}${p.top_story?'<span class="tag">TOP STORY</span>':''}${p.developing?'<span class="tag">DEVELOPING</span>':''}</div><div class="source-row"><div><div class="label">Source</div><strong>${esc(s.name||'')}</strong></div><div>${isHttpUrl(s.url)?`<a href="${esc(s.url)}" target="_blank" rel="noopener">Open original ↗</a>`:''}</div></div><div class="label section">Original headline</div><div class="original">${esc(c.original_headline||c.headline||'')}</div><div class="label">AINWA proposed headline</div><h1>${esc(p.headline||'')}</h1><div class="label">Summary</div><ul class="summary">${sum.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="facts"><div class="fact"><span>Category</span>${esc(p.category||'—')}</div><div class="fact"><span>Priority</span>${esc(p.priority||'—')}</div><div class="fact"><span>Top story</span>${p.top_story?'Yes':'No'}</div><div class="fact"><span>Developing</span>${p.developing?'Yes':'No'}</div></div>${p.why_selected?`<div class="section"><div class="label">Claude rationale</div><div class="note">${esc(p.why_selected)}</div></div>`:''}${p.duplicate_note?`<div class="section"><div class="label">Corroboration / duplicate note</div><div class="note">${esc(p.duplicate_note)}</div></div>`:''}<div class="actions"><button class="primary" onclick="review('approve')">Approve As-Is</button><button onclick="openEdit()">Edit & Approve</button><button onclick="snoozeDialog.showModal()">Snooze</button><button onclick="rejectDialog.showModal()">Reject</button><span class="spacer"></span><span class="keys">A approve · E edit · S snooze · R reject · ←/→ navigate</span></div></article>`}
+async function review(action,payload={}){const c=state.candidates[selected];if(!c)return;const r=await fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json','X-AINWA-CSRF-Token':csrfToken||''},body:JSON.stringify({id:c.id,action,...payload})});const out=await r.json();if(!r.ok){alert(out.error||'Review action failed');return}notify(action.replace('_',' '));await load()}
+function openEdit(){const c=state.candidates[selected],p=proposalOf(c),s=sourceOf(c);q('editHeadline').value=p.headline||'';q('editSummary').value=summaryOf(p).join('\n');q('editCategory').value=p.category||'';q('editPriority').value=p.priority||'';q('editTop').checked=!!p.top_story;q('editDeveloping').checked=!!p.developing;q('editPaywall').checked=!!(s.paywall||c.paywall||c.paywall_status==='paywall');editDialog.showModal()}
+function submitEditApprove(){const edits={headline:q('editHeadline').value.trim(),summary:q('editSummary').value.split('\n').map(x=>x.trim()).filter(Boolean),category:q('editCategory').value.trim(),priority:q('editPriority').value.trim(),top_story:q('editTop').checked,developing:q('editDeveloping').checked,paywall:q('editPaywall').checked};editDialog.close();review('edit_approve',{edits})}
+function submitReject(){const reason=q('rejectReason').value;rejectDialog.close();review('reject',{reason})}
+function submitSnooze(){const until=q('snoozeUntil').value,reason=q('snoozeReason').value;snoozeDialog.close();review('snooze',{until,reason})}
+document.addEventListener('keydown',e=>{if(document.querySelector('dialog[open]'))return;if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if(e.key==='a'||e.key==='A')review('approve');else if(e.key==='e'||e.key==='E')openEdit();else if(e.key==='s'||e.key==='S')snoozeDialog.showModal();else if(e.key==='r'||e.key==='R')rejectDialog.showModal();else if(e.key==='ArrowRight'){selected=Math.min(selected+1,state.candidates.length-1);render()}else if(e.key==='ArrowLeft'){selected=Math.max(selected-1,0);render()}});load().catch(err=>q('main').innerHTML=`<div class="empty">${esc(err)}</div>`)
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "generated_at": "2026-08-13T17:30:00Z",
+  "_language_note": "Candidates are English-only working data in v1 and do not carry a 'language' field during review. The server adds language.source_language/localizations to the APPROVED record automatically at approval time (see server.py normalize_language() and data/approved-queue.example.json) — translation only ever happens after English approval, never during candidacy.",
+  "candidates": [
+    {
+      "id": "cand-001",
+      "status": "review",
+      "rank": 1,
+      "original_headline": "Example original source headline",
+      "source": {
+        "name": "Example News",
+        "url": "https://example.com/story",
+        "role": "Original Reporting",
+        "reliability": "High",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "EXAMPLE AINETWATCH HEADLINE",
+        "summary": [
+          "What happened, stated briefly.",
+          "Why the development matters.",
+          "Important context for the reader."
+        ],
+        "category": "Models",
+        "priority": "High",
+        "top_story": true,
+        "developing": false,
+        "why_selected": "High-impact development from a strong original source.",
+        "duplicate_note": "No material duplicate in the current batch."
+      },
+      "discovered_at": "2026-08-13T17:20:00Z"
+    }
+  ]
+}

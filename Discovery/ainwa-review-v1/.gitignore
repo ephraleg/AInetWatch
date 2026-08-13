@@ -1,0 +1,17 @@
+# Generated ingestion output — re-created on every run
+data/raw-discovery.json
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Atomic-write temp files (server.py writes these before os.replace())
+*.tmp
+
+# OS cruft
+.DS_Store
+
+# Editor swap/backup files
+*.swp
+*~

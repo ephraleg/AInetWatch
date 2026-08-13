@@ -1,0 +1,653 @@
+version: 1
+system: AINWA
+purpose: Lightweight discovery registry and policy for AInetWatch news sourcing.
+discovery_policy:
+  registry_first: true
+  open_web_default: false
+  priority_schedule:
+    high: every_discovery_run
+    medium: reduced_frequency
+    low: daily_or_overflow_sweep
+  discovery_only:
+    may_generate_leads: true
+    may_be_final_source: false
+  source_resolution:
+    before_human_review: true
+    preferred_final_roles:
+    - Primary Source
+    - Original Reporting
+    rule: Resolve promising leads to a Primary Source or Original Reporting source whenever one exists.
+  top_story_selection:
+    selector: Claude
+    maximum_stories: 12
+    criteria:
+    - importance
+    - timeliness
+    - novelty
+    - source_quality
+    - reader_relevance
+    - non_duplication
+    external_reviewers:
+    - Grok
+    - Gemini
+    review_payload:
+    - candidate_list
+    - selection_criteria
+    - Claude_rationale
+    review_mode: advisory
+    blocking: false
+    failure_rule: If an external reviewer is unavailable, continue to human review rather than block the workflow.
+  paywalls:
+    disqualifying: false
+    prefer_equally_authoritative_accessible_source: true
+    accepted_paywall_story_tag: paywall
+sources:
+- id: SRC-001
+  name: The Rundown AI
+  domain: therundown.ai
+  category: AI News / Discovery
+  role: Discovery Only
+  enabled: true
+  priority: high
+  citation_allowed: 'no'
+  reliability: medium
+  notes: High-signal daily discovery; resolve every lead to the original source.
+- id: SRC-002
+  name: Techmeme
+  domain: techmeme.com
+  feed_url: https://www.techmeme.com/feed.xml
+  category: AI News / Discovery
+  role: Discovery Only
+  enabled: true
+  priority: high
+  citation_allowed: 'no'
+  reliability: high
+  notes: Fast curated technology discovery; never use as the final publication source.
+- id: SRC-003
+  name: AI Weekly
+  domain: aiweekly.co
+  category: AI News / Discovery
+  role: Discovery Only
+  enabled: true
+  priority: medium
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Useful weekly AI aggregation; lower-frequency discovery input.
+- id: SRC-004
+  name: AI Breakfast
+  domain: aibreakfast.com
+  category: AI News / Discovery
+  role: Discovery Only
+  enabled: true
+  priority: low
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Curated AI discovery with substantial overlap with higher-priority sources.
+- id: SRC-005
+  name: Ben's Bites
+  domain: bensbites.co
+  category: AI News / Discovery
+  role: Discovery Only
+  enabled: true
+  priority: medium
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Useful for early AI product and builder signals; discovery only.
+- id: SRC-006
+  name: TLDR AI
+  domain: tldr.tech
+  category: AI News / Discovery
+  role: Discovery Only
+  enabled: true
+  priority: low
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Dense AI roundup useful as a low-cost gap check.
+- id: SRC-007
+  name: Hacker News
+  domain: news.ycombinator.com
+  category: Technology News
+  role: Discovery Only
+  enabled: true
+  priority: medium
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Good early signal for technical releases; high noise, so discovery only.
+- id: SRC-008
+  name: Papers with Code
+  domain: paperswithcode.com
+  category: Research / Academic
+  role: Discovery Only
+  enabled: true
+  priority: medium
+  citation_allowed: 'no'
+  reliability: high
+  notes: Useful structured discovery for trending ML papers and implementations.
+- id: SRC-009
+  name: Reuters
+  domain: reuters.com
+  category: General News
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Top-tier breaking reporting on AI business, policy, regulation, and geopolitics.
+- id: SRC-010
+  name: Associated Press
+  domain: apnews.com
+  category: General News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Reliable mainstream reporting; useful baseline for major AI developments.
+- id: SRC-011
+  name: Bloomberg
+  domain: bloomberg.com
+  category: Business / Finance
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-signal original reporting on AI companies, markets, infrastructure, and policy; frequent paywall.
+- id: SRC-012
+  name: Financial Times
+  domain: ft.com
+  category: Business / Finance
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong global AI business and regulatory reporting; frequent paywall.
+- id: SRC-013
+  name: Wall Street Journal
+  domain: wsj.com
+  category: Business / Finance
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong original reporting on enterprise AI, investment, and major companies; frequent paywall.
+- id: SRC-014
+  name: New York Times
+  domain: nytimes.com
+  category: General News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Major investigations and broad-impact AI reporting; frequent paywall.
+- id: SRC-015
+  name: The Information
+  domain: theinformation.com
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-signal AI lab and technology scoops; strict paywall.
+- id: SRC-016
+  name: Axios
+  domain: axios.com
+  category: General News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Concise original reporting on AI policy, politics, and industry shifts.
+- id: SRC-017
+  name: CNBC
+  domain: cnbc.com
+  category: Business / Finance
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Useful for public companies, markets, funding, and executive AI news.
+- id: SRC-018
+  name: TechCrunch
+  domain: techcrunch.com
+  feed_url: https://techcrunch.com/feed/
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-signal AI startup, funding, product, and company reporting.
+- id: SRC-019
+  name: The Verge
+  domain: theverge.com
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong consumer AI, product, platform, and policy reporting.
+- id: SRC-020
+  name: Ars Technica
+  domain: arstechnica.com
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong technical depth on AI systems, science, security, and legal issues.
+- id: SRC-021
+  name: WIRED
+  domain: wired.com
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong original reporting on AI security, policy, culture, and products.
+- id: SRC-022
+  name: MIT Technology Review
+  domain: technologyreview.com
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-quality AI research, policy, and impact reporting.
+- id: SRC-023
+  name: VentureBeat
+  domain: venturebeat.com
+  category: Technology News
+  role: Mixed
+  enabled: true
+  priority: medium
+  citation_allowed: conditional
+  reliability: medium
+  notes: AI-focused enterprise coverage with mixed original and aggregated material.
+- id: SRC-024
+  name: BleepingComputer
+  domain: bleepingcomputer.com
+  feed_url: https://www.bleepingcomputer.com/feed/
+  category: Cybersecurity
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-signal original cybersecurity reporting, including AI-enabled threats.
+- id: SRC-025
+  name: Dark Reading
+  domain: darkreading.com
+  category: Cybersecurity
+  role: Mixed
+  enabled: true
+  priority: medium
+  citation_allowed: conditional
+  reliability: high
+  notes: Useful enterprise security reporting and analysis; verify original-source status per story.
+- id: SRC-026
+  name: IEEE Spectrum
+  domain: spectrum.ieee.org
+  category: Research / Academic
+  role: Original Reporting
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Deep engineering reporting; valuable but lower-frequency for the daily AI wire.
+- id: SRC-027
+  name: Tech Policy Press
+  domain: techpolicy.press
+  category: Policy / Governance
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Original reporting and analysis focused on technology policy and AI governance.
+- id: SRC-028
+  name: The Record
+  domain: therecord.media
+  feed_url: https://therecord.media/feed
+  category: Cybersecurity
+  role: Original Reporting
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-signal cybersecurity reporting and investigations with policy relevance.
+- id: SRC-029
+  name: Politico
+  domain: politico.com
+  category: Policy / Governance
+  role: Original Reporting
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong U.S. and EU policy reporting; some content may be paywalled.
+- id: SRC-030
+  name: 404 Media
+  domain: 404media.co
+  category: Technology News
+  role: Original Reporting
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Investigative technology reporting; useful for unusual AI/platform stories.
+- id: SRC-031
+  name: Fortune
+  domain: fortune.com
+  category: Business / Finance
+  role: Original Reporting
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Useful enterprise and executive AI reporting; some content is metered or paywalled.
+- id: SRC-032
+  name: Krebs on Security
+  domain: krebsonsecurity.com
+  category: Cybersecurity
+  role: Original Reporting
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Top-tier cybercrime investigations; AI-specific stories are lower frequency.
+- id: SRC-033
+  name: CyberScoop
+  domain: cyberscoop.com
+  category: Cybersecurity
+  role: Original Reporting
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Useful government-security reporting when AI intersects with cybersecurity policy.
+- id: SRC-034
+  name: OpenAI
+  domain: openai.com
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for OpenAI model, product, research, safety, and policy announcements.
+- id: SRC-035
+  name: Anthropic
+  domain: anthropic.com
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Claude releases, research, safety, and policy announcements.
+- id: SRC-036
+  name: Google DeepMind
+  domain: deepmind.google
+  feed_url: https://deepmind.google/blog/rss.xml
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for DeepMind model and research announcements.
+- id: SRC-037
+  name: xAI
+  domain: x.ai
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: medium
+  notes: Primary source for Grok and xAI announcements; verify broader claims independently when appropriate.
+- id: SRC-038
+  name: Meta AI / FAIR
+  domain: ai.meta.com
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Meta AI models, research, and open-weight releases.
+- id: SRC-039
+  name: NVIDIA
+  domain: nvidia.com
+  feed_url: https://blogs.nvidia.com/feed/
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for major AI hardware, software, platform, and research announcements.
+- id: SRC-040
+  name: Microsoft Research
+  domain: microsoft.com
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Microsoft AI research; product news may appear elsewhere on Microsoft domains.
+- id: SRC-041
+  name: Google AI
+  domain: ai.google
+  feed_url: https://blog.google/technology/ai/rss/
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Google AI product and model announcements outside DeepMind.
+- id: SRC-042
+  name: Hugging Face
+  domain: huggingface.co
+  category: Primary AI Lab / Company
+  role: Mixed
+  enabled: true
+  priority: medium
+  citation_allowed: conditional
+  reliability: high
+  notes: Mixed first-party and third-party ecosystem content; cite conditionally based on the specific page.
+- id: SRC-043
+  name: Amazon AWS / AI
+  domain: aws.amazon.com
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for AWS AI service and infrastructure announcements.
+- id: SRC-044
+  name: Cohere
+  domain: cohere.com
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Cohere enterprise model and product announcements.
+- id: SRC-045
+  name: Mistral AI
+  domain: mistral.ai
+  category: Primary AI Lab / Company
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Mistral model, product, and company announcements.
+- id: SRC-046
+  name: arXiv
+  domain: arxiv.org
+  feed_url: https://export.arxiv.org/rss/cs.AI
+  category: Research / Academic
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: conditional
+  reliability: medium
+  notes: Fast research discovery; papers are primary research but may be unreviewed preprints.
+- id: SRC-047
+  name: Stanford HAI
+  domain: hai.stanford.edu
+  category: Research / Academic
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary research and policy reports, including the AI Index; lower-frequency daily signal.
+- id: SRC-048
+  name: GitHub Blog
+  domain: github.blog
+  category: Technology News
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for GitHub Copilot and developer-platform AI announcements.
+- id: SRC-049
+  name: NIST
+  domain: nist.gov
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary U.S. standards and AI risk-management guidance.
+- id: SRC-050
+  name: Federal Register
+  domain: federalregister.gov
+  feed_url: https://www.federalregister.gov/api/v1/documents.rss?conditions%5Bterm%5D=artificial+intelligence
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Official U.S. rulemaking and notices; high-value for regulatory changes.
+- id: SRC-051
+  name: FTC
+  domain: ftc.gov
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for AI-related consumer protection, competition, and enforcement actions.
+- id: SRC-052
+  name: CISA
+  domain: cisa.gov
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary U.S. cyber alerts, guidance, and AI-security materials.
+- id: SRC-053
+  name: White House
+  domain: whitehouse.gov
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Official U.S. executive AI policy and major administration announcements.
+- id: SRC-054
+  name: European AI Office
+  domain: digital-strategy.ec.europa.eu
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for EU AI Act implementation and AI Office guidance.
+- id: SRC-055
+  name: European Commission
+  domain: ec.europa.eu
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Official EU AI, competition, digital-policy, and enforcement developments.
+- id: SRC-056
+  name: Council of the European Union
+  domain: consilium.europa.eu
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Official Council positions and actions; lower-frequency discovery input.
+- id: SRC-057
+  name: UK AI Security Institute
+  domain: aisi.gov.uk
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for UK frontier-model evaluation and AI security work.
+- id: SRC-058
+  name: U.S. Department of Justice
+  domain: justice.gov
+  category: Government / Regulation
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Official AI-related enforcement, competition, cyber, and national-security actions.
+- id: SRC-059
+  name: CSET
+  domain: cset.georgetown.edu
+  category: Policy / Governance
+  role: Primary Source
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-quality research on AI security, geopolitics, talent, and policy.
+- id: SRC-060
+  name: AI Now Institute
+  domain: ainowinstitute.org
+  category: Policy / Governance
+  role: Primary Source
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary policy research and advocacy on AI power, accountability, and societal impact.

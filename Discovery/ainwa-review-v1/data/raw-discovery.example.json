@@ -1,0 +1,75 @@
+{
+  "_note": "This file documents the raw-discovery.json schema produced by ingest.py. It is a static reference — not read or written by any pipeline component. The real output file (raw-discovery.json, gitignored) is overwritten on every ingest run.",
+  "version": 1,
+  "run_id": "2026-08-13T17:30:00Z",
+  "priority_filter": "high",
+  "item_count": 2,
+  "error_count": 1,
+  "skipped_count": 1,
+  "items": [
+    {
+      "_comment_rss_example": "RSS 2.0 item — fetch_method is 'rss'",
+      "item_id": "raw-SRC-018-a3f9b2c1",
+      "source_id": "SRC-018",
+      "source_name": "TechCrunch",
+      "source_domain": "techcrunch.com",
+      "source_priority": "high",
+      "source_role": "Original Reporting",
+      "source_citation_allowed": "yes",
+      "source_reliability": "high",
+      "fetch_method": "rss",
+      "feed_url": "https://techcrunch.com/feed/",
+      "item_url": "https://techcrunch.com/2026/08/13/example-story/",
+      "item_title": "Raw title exactly as it appears in the feed",
+      "item_published": "Wed, 13 Aug 2026 10:00:00 +0000",
+      "feed_description": "<p>Raw HTML description from the feed &lt;description&gt; element.</p>",
+      "feed_description_format": "html",
+      "fetched_at": "2026-08-13T17:30:00Z"
+    },
+    {
+      "_comment_atom_example": "Atom 1.0 entry — fetch_method is 'atom'",
+      "item_id": "raw-SRC-015-d4e5f601",
+      "source_id": "SRC-015",
+      "source_name": "The Information",
+      "source_domain": "theinformation.com",
+      "source_priority": "high",
+      "source_role": "Original Reporting",
+      "source_citation_allowed": "yes",
+      "source_reliability": "high",
+      "fetch_method": "atom",
+      "feed_url": "https://www.theinformation.com/feed",
+      "item_url": "https://www.theinformation.com/articles/example-article",
+      "item_title": "Raw title from Atom <title> element",
+      "item_published": "2026-08-13T09:00:00Z",
+      "feed_description": "Brief plain-text teaser from the Atom <summary> element.",
+      "feed_description_format": "text",
+      "fetched_at": "2026-08-13T17:30:05Z"
+    }
+  ],
+  "errors": [
+    {
+      "source_id": "SRC-XXX",
+      "source_name": "Example Failed Source",
+      "feed_url": "https://example.com/feed",
+      "error": "connection timeout after 15s",
+      "at": "2026-08-13T17:30:10Z"
+    }
+  ],
+  "skipped": [
+    {
+      "source_id": "SRC-011",
+      "source_name": "Bloomberg",
+      "reason": "no feed_url — deferred to deterministic page-check path"
+    }
+  ],
+  "_schema_notes": {
+    "item_id": "Deterministic: 'raw-{source_id}-{sha1(item_url)[:8]}'. Stable across runs for the same URL. Enables future exact-URL cross-run dedup.",
+    "item_url": "URL of the individual article/entry. Stored as an untrusted string — never fetched in v1.",
+    "feed_description": "Raw description/summary field from the feed. Explicitly untrusted source material. May be HTML, plain text, or null. Never a public AInetWatch summary.",
+    "feed_description_format": "'html' | 'text' | null. Inferred from Atom type attribute or HTML heuristic for RSS. null means field is absent or empty.",
+    "fetch_method": "'rss' for RSS 2.0 feeds, 'atom' for Atom 1.0 feeds. 'page' is reserved for the future deterministic page-check path.",
+    "priority_filter": "Which registry priority tier was ingested this run. Always 'high' in v1.",
+    "skipped": "High-priority sources without a feed_url — deferred to the deterministic page-check path (future issue).",
+    "errors": "Per-source fetch/parse failures. Run continues after each error; partial output is still written."
+  }
+}

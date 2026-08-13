@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "updated_at": "2026-08-13T17:35:00Z",
+  "_language_note": "This file illustrates the shape server.py's make_approved()/normalize_language() actually produce. 'approved-story-v1-en-only' shows what every v1 approval looks like today: source_language is always 'en', localizations is always {} — nothing here is auto-translated or pre-populated. 'approved-story-v2-illustrative-only' is NOT real/current behavior — it shows the future shape a localization entry will have once a translation stage exists, purely so the schema is documented consistently. Do not treat the second record as active data; v1 never writes anything into localizations.",
+  "stories": [
+    {
+      "id": "cand-001",
+      "source": {
+        "name": "Example News",
+        "url": "https://example.com/story",
+        "role": "Original Reporting",
+        "reliability": "High",
+        "paywall": false
+      },
+      "approved": {
+        "headline": "EXAMPLE AINETWATCH HEADLINE",
+        "summary": [
+          "What happened, stated briefly.",
+          "Why the development matters.",
+          "Important context for the reader."
+        ],
+        "category": "Models",
+        "priority": "High",
+        "top_story": true,
+        "developing": false,
+        "paywall": false,
+        "approved_at": "2026-08-13T17:35:00Z",
+        "approved_by": "human",
+        "locked": true
+      },
+      "original_headline": "Example original source headline",
+      "discovered_at": "2026-08-13T17:20:00Z",
+      "language": {
+        "source_language": "en",
+        "localizations": {}
+      }
+    },
+    {
+      "id": "approved-story-v2-illustrative-only",
+      "source": {
+        "name": "Example News",
+        "url": "https://example.com/another-story",
+        "role": "Original Reporting",
+        "reliability": "High",
+        "paywall": false
+      },
+      "approved": {
+        "headline": "EXAMPLE OF AN ALREADY-APPROVED ENGLISH HEADLINE",
+        "summary": [
+          "This is the authoritative, human-approved English content.",
+          "A future translation stage would derive from exactly this.",
+          "It would never regenerate or reinterpret the story independently."
+        ],
+        "category": "Governance",
+        "priority": "Medium",
+        "top_story": false,
+        "developing": false,
+        "paywall": false,
+        "approved_at": "2026-08-13T09:00:00Z",
+        "approved_by": "human",
+        "locked": true
+      },
+      "original_headline": "Another example original source headline",
+      "discovered_at": "2026-08-13T08:40:00Z",
+      "language": {
+        "source_language": "en",
+        "localizations": {
+          "es": {
+            "status": "pending",
+            "headline": null,
+            "public_summary": null,
+            "approved_at": null
+          }
+        }
+      }
+    }
+  ]
+}
