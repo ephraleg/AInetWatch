@@ -1,0 +1,10 @@
+# OS cruft
+.DS_Store
+
+# graphify skill output (regenerable code-exploration cache/graph, not source)
+graphify-out/
+
+# Python bytecode cache (any location)
+__pycache__/
+*.pyc
+*.pyo

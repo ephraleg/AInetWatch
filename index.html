@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  SEO / ANALYTICS / STRUCTURED DATA — merged in verbatim from production
+  index.html (source of truth: /Users/q/AInetWatch/index.html) per the
+  DRAFT-HARDENING pass. Do not alter these values in this pass; any change
+  to title, description, canonical, OG/Twitter metadata, Clarity, or
+  JSON-LD must be a deliberate decision made against production, not a
+  side effect of draft work. See change report for details.
+-->
+<title>AI News Today — Security, Policy & Business | AInetWatch</title>
+<meta name="description" content="Browse today’s essential AI headlines: AI industry news on security, policy, and business, linked to original reporting.">
+<link rel="canonical" href="https://ainetwatch.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AInetWatch">
+<meta property="og:title" content="AI News Today — Security, Policy & Business | AInetWatch">
+<meta property="og:description" content="Browse today’s essential AI headlines: AI industry news on security, policy, and business, linked to original reporting.">
+<meta property="og:url" content="https://ainetwatch.com/">
+<meta property="og:image" content="https://ainetwatch.com/images/ainetwatch-social.jpg">
+<meta property="og:image:width" content="1792">
+<meta property="og:image:height" content="1008">
+<meta property="og:image:alt" content="AInetWatch — The Artificial Intelligence News Wire">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AI News Today — Security, Policy & Business | AInetWatch">
+<meta name="twitter:description" content="Browse today’s essential AI headlines: AI industry news on security, policy, and business, linked to original reporting.">
+<meta name="twitter:image" content="https://ainetwatch.com/images/ainetwatch-social.jpg">
+<meta name="twitter:image:alt" content="AInetWatch — The Artificial Intelligence News Wire">
+
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "xpj1c3u72j");
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://ainetwatch.com/#website",
+      "url": "https://ainetwatch.com/",
+      "name": "AInetWatch",
+      "description": "AI news wire covering security, policy, business, models, research, infrastructure and applications.",
+      "publisher": {
+        "@id": "https://ainetwatch.com/#organization"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://ainetwatch.com/#organization",
+      "name": "AInetWatch",
+      "url": "https://ainetwatch.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://ainetwatch.com/images/ainetwatch-social.jpg"
+      }
+    }
+  ]
+}
+</script>
+
+<!--
+  FAVICON — development-only addition (2026-08-12). Production
+  (/Users/q/AInetWatch) still has no favicon configuration; this is not
+  a restoration of anything, it's new. Assets generated from
+  CypherFavicon.jpg via sips (PNG resizes) + a hand-built PNG-in-ICO
+  container (no ImageMagick/Pillow available; PNG-compressed ICO
+  entries are a standard, broadly-supported technique). Source artwork
+  (CypherFavicon.jpg) itself was not modified.
+-->
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+
+<!--
+  PLACEHOLDER CONTENT NOTICE
+  All headlines, sources, and summary bullets below are SAMPLE DATA for
+  layout/design purposes only. They are not real news.
+
+  RENDERING CONTRACT (architecture pass, 2026-08-12)
+  This markup is hand-authored for now, but its repeated story structures
+  are shaped to match the future build-time rendering contract:
+
+    Approved Story Record (data/approved-queue.json)
+        → deterministic build/template
+        → this static HTML
+
+  ANWU agents never write HTML directly; they only ever produce Approved
+  Story Records, which a build step renders. Field mapping (see
+  docs/ANWU-HOMEPAGE-ARCHITECTURE.md in this directory for the full schema
+  and provenance model):
+
+    approved.top_story        → which story gets the .top-story treatment
+    approved.developing       → the "Developing" tag
+    approved.display_headline → headline link text
+    source.source_name        → the small source label
+    source.source_url         → headline href
+    approved.priority         → ordering within/between columns
+    approved.categories[]     → tooltip category tag pills
+    approved.summary_bullets[]→ tooltip bullets ("Here's the summary")
+    approved.image/image_alt  → optional rare story image + alt text
+
+  data-story-id / data-top-story / data-developing attributes below are
+  annotations only (no CSS/behavior depends on them) — they exist so the
+  markup↔schema mapping is inspectable directly in this file.
+-->
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: #666666;
+    --rule: #cccccc;
+    --link: #0b3d91;
+    --link-visited: #4a4a8a;
+    --accent: #b30000;
+    --tag-bg: #eeeeee;
+    --tag-fg: #333333;
+    --tooltip-bg: #ffffff;
+    --tooltip-border: #222222;
+    --ad-border: #dddddd;
+    --ad-fg: #999999;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --fg: #e8e8e8;
+      --muted: #9a9a9a;
+      --rule: #333333;
+      --link: #7aa7ff;
+      --link-visited: #b39ddb;
+      --accent: #ff6b6b;
+      --tag-bg: #262626;
+      --tag-fg: #cccccc;
+      --tooltip-bg: #1c1c1c;
+      --tooltip-border: #555555;
+      --ad-border: #333333;
+      --ad-fg: #777777;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.35;
+  }
+
+  a { color: var(--link); text-decoration: none; }
+  a:visited { color: var(--link-visited); }
+  a:hover, a:focus { text-decoration: underline; }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 12px; }
+
+  /* ---------- Ad zones ----------
+     Dormant by default: `display: none` unconditionally, regardless of
+     content, so a dormant zone has ZERO visual footprint (no border, no
+     min-height, no placeholder text) whether or not anything has been
+     dropped inside it. This is deliberate: real ad units are often loaded
+     asynchronously by network JS, so relying on ":empty" would leave a
+     brief unstyled gap between "script attached" and "creative rendered."
+
+     To activate a zone, add the `.is-active` class explicitly (done by
+     whoever wires up the ad network later, BEFORE that network's script
+     runs) — this reserves the zone's real dimensions immediately,
+     independent of whether the actual ad content has arrived yet, which is
+     what actually prevents CLS. `.is-active::before` also pre-builds the
+     "clearly distinguishable from news" label so activation needs no
+     redesign, just the class + the ad snippet itself.
+
+     Three zones only, per the current architecture:
+       ad-zone-1  top banner, above the masthead
+       ad-zone-2  bottom of the left news column
+       ad-zone-3  mid right news column
+     No ad-network JS/trackers are wired up here — CSS architecture only. */
+  .ad-zone { display: none; }
+  .ad-zone.is-active {
+    display: block;
+    text-align: center;
+  }
+  .ad-zone.is-active::before {
+    content: "Advertisement";
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--ad-fg);
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .ad-zone--top.is-active {
+    max-width: 728px;
+    min-height: 50px;
+    margin: 10px auto 0;
+  }
+  .ad-zone--column.is-active {
+    min-height: 150px;
+    margin: 12px 0;
+  }
+
+  /* ---------- Masthead ---------- */
+  .masthead { padding: 12px 0 8px; border-bottom: 3px solid var(--fg); }
+  .masthead-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    position: relative;
+    text-align: center;
+  }
+  .masthead h1 {
+    margin: 0;
+    font-size: clamp(1.7rem, 5vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .masthead h1 a { color: var(--fg); text-decoration: none; }
+  .tagline {
+    margin: 2px 0 0;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .cypher-trigger {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+  }
+  .cypher-trigger img {
+    width: 50px;
+    height: 50px;
+    border-radius: 6px;
+    display: block;
+  }
+  .cypher-trigger .cypher-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  /* ---------- Top story ---------- */
+  .top-story { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .developing-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-radius: 2px;
+  }
+  .top-story .headline {
+    font-size: clamp(1.3rem, 3.5vw, 1.9rem);
+    font-weight: 700;
+    color: var(--fg);
+  }
+  .top-story .source {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .top-story-body { display: flex; gap: 14px; align-items: flex-start; }
+  .top-story-img {
+    flex: 0 0 96px;
+    width: 96px;
+    height: 72px;
+    background: var(--tag-bg);
+    border: 1px solid var(--rule);
+  }
+
+  /* ---------- Wire grid ---------- */
+  .wire-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 20px;
+    padding: 14px 0;
+  }
+  .wire-col { border-right: 1px solid var(--rule); padding-right: 20px; }
+  .wire-col:last-child { border-right: none; padding-right: 0; }
+
+  .story {
+    position: relative;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .story:last-child { border-bottom: none; }
+
+  .story-body { display: flex; gap: 8px; align-items: flex-start; }
+  .story-img {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 34px;
+    background: var(--tag-bg);
+    border: 1px solid var(--rule);
+    margin-top: 2px;
+  }
+  .story-text { flex: 1 1 auto; }
+
+  .headline { font-size: 0.95rem; font-weight: 600; color: var(--fg); }
+  .source {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Mobile-only tap indicator for the tooltip (hover is unavailable on touch) */
+  .tip-toggle { position: absolute; opacity: 0; pointer-events: none; }
+  .tip-indicator {
+    display: none;
+    font-size: 0.8rem;
+    color: var(--link);
+    margin-left: 4px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* ---------- Tooltip ---------- */
+  .tooltip {
+    display: none;
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    width: 240px;
+    max-width: 80vw;
+    background: var(--tooltip-bg);
+    border: 1px solid var(--tooltip-border);
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.15);
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+  .story .headline:hover ~ .tooltip,
+  .story .headline:focus ~ .tooltip,
+  .story .tip-toggle:checked ~ .tooltip {
+    display: block;
+  }
+  .tooltip-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .tooltip-head img { width: 16px; height: 16px; border-radius: 3px; }
+  .tooltip-head strong { font-size: 0.82rem; }
+  .tooltip ul { margin: 0 0 8px; padding-left: 16px; }
+  .tooltip li { margin-bottom: 3px; }
+  .tooltip .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag {
+    background: var(--tag-bg);
+    color: var(--tag-fg);
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  /* ---------- Cypher floating talking-head (frameless, vanilla JS — see script at end of body) ---------- */
+  .cypher-float {
+    position: fixed;
+    top: 84px;
+    right: 16px;
+    width: min(320px, 80vw);
+    z-index: 999;
+    background: transparent;
+  }
+  .cypher-float[hidden] { display: none; }
+  .cypher-float video {
+    width: 100%;
+    display: block;
+    background: transparent;
+  }
+  .cypher-float-close {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--fg);
+    color: var(--bg);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 3px solid var(--fg);
+    margin-top: 18px;
+    padding: 18px 0 30px;
+    font-size: 0.85rem;
+  }
+  .footer-nav { margin-bottom: 12px; }
+  .footer-nav a { margin-right: 14px; color: var(--fg); font-weight: 600; }
+  .social { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+  .social a {
+    color: var(--fg);
+    border: 1px solid var(--rule);
+    padding: 3px 9px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .social-placeholder {
+    color: var(--ad-fg);
+    border: 1px dashed var(--ad-border);
+    padding: 3px 9px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: default;
+  }
+  .copyright { color: var(--muted); }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 700px) {
+    .wire-grid { grid-template-columns: 1fr; }
+    .wire-col { border-right: none; padding-right: 0; border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 8px; }
+    .wire-col:last-child { border-bottom: none; }
+    .tip-indicator { display: inline-block; }
+    .top-story-img { display: none; }
+    .cypher-trigger img { width: 42px; height: 42px; }
+    .cypher-float { width: min(220px, 60vw); top: 66px; right: 8px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- AD ZONE 1 — top banner, above the masthead. Dormant = zero footprint (see .ad-zone CSS). -->
+  <div class="wrap">
+    <div class="ad-zone ad-zone--top" id="ad-zone-1" data-ad-zone="1"></div>
+  </div>
+
+  <header class="masthead">
+    <div class="masthead-inner">
+      <button type="button" id="cypher-trigger" class="cypher-trigger" aria-label="Ask Cypher" aria-haspopup="true" aria-expanded="false" aria-controls="cypher-float">
+        <img src="CypherFavicon.jpg" alt="" width="50" height="50">
+        <span class="cypher-label">ASK CYPHER</span>
+      </button>
+      <h1><a href="/">AInetWatch</a></h1>
+      <p class="tagline">The AI News Wire</p>
+    </div>
+  </header>
+
+  <!--
+    Cypher floating talking-head — frameless, transparent video, minimal vanilla JS.
+    No modal card/frame/backdrop by design (see requirements: no bordered box, no
+    black rectangle, no conventional player frame). Opened/closed/played entirely by
+    the script at the end of <body>. Source order: Safari-compatible .mov first,
+    .webm fallback second, per the provided assets.
+  -->
+  <div class="cypher-float" id="cypher-float" hidden>
+    <button type="button" class="cypher-float-close" id="cypher-float-close" aria-label="Close Cypher">&times;</button>
+    <video id="cypher-video" preload="none" playsinline>
+      <source src="cypher-transparent-safari.mov" type="video/quicktime">
+      <source src="cypher-transparent-final.webm" type="video/webm">
+    </video>
+  </div>
+
+  <main class="wrap">
+
+    <section class="top-story" aria-labelledby="top-story-heading">
+      <h2 id="top-story-heading" class="visually-hidden">Top Story</h2>
+      <div class="top-story-body" data-story-id="top-story" data-top-story="true" data-developing="true">
+        <div class="top-story-img" role="img" aria-label="Story image placeholder"></div>
+        <div class="story-text">
+          <span class="developing-tag">Developing</span>
+          <a class="headline" href="https://example.com/top-story" target="_blank" rel="noopener noreferrer">
+            Major AI lab confirms new frontier model is in final testing ahead of release
+          </a>
+          <span class="source">Reuters</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="wire-heading">
+      <h2 id="wire-heading" class="visually-hidden">Headlines</h2>
+
+      <div class="wire-grid">
+
+        <!-- Column 1 -->
+        <div class="wire-col">
+
+          <div class="story" data-story-id="story-1">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-1" target="_blank" rel="noopener noreferrer">Regulators open new inquiry into model training data practices</a>
+                <span class="source">Bloomberg</span>
+                <input type="checkbox" id="tip-1" class="tip-toggle">
+                <label for="tip-1" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Inquiry targets data sourcing disclosures</li>
+                    <li>Several major labs named as subjects</li>
+                    <li>No penalties proposed yet</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Governance</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-2">
+            <div class="story-body">
+              <div class="story-img" role="img" aria-label="Story image placeholder"></div>
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-2" target="_blank" rel="noopener noreferrer">Chipmaker unveils next-gen inference silicon aimed at data centers</a>
+                <span class="source">The Information</span>
+                <input type="checkbox" id="tip-2" class="tip-toggle">
+                <label for="tip-2" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Chip promises lower inference cost per token</li>
+                    <li>Sampling shipments begin next quarter</li>
+                    <li>Two hyperscalers already committed as buyers</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Infrastructure</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-3">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-3" target="_blank" rel="noopener noreferrer">Security researchers disclose prompt-injection flaw in popular agent framework</a>
+                <span class="source">SecurityWeek</span>
+                <input type="checkbox" id="tip-3" class="tip-toggle">
+                <label for="tip-3" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Flaw lets untrusted content hijack agent actions</li>
+                    <li>Patch available; adoption still low</li>
+                    <li>No confirmed exploitation in the wild yet</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Security</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-4">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-4" target="_blank" rel="noopener noreferrer">Startup raises new round to build AI tooling for legal document review</a>
+                <span class="source">TechCrunch</span>
+                <input type="checkbox" id="tip-4" class="tip-toggle">
+                <label for="tip-4" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Round led by existing investors</li>
+                    <li>Product targets mid-size law firms</li>
+                    <li>Plans to double headcount this year</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Business</span><span class="tag">Applications</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-5">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-5" target="_blank" rel="noopener noreferrer">Open-weight model release reignites debate over responsible disclosure</a>
+                <span class="source">Ars Technica</span>
+                <input type="checkbox" id="tip-5" class="tip-toggle">
+                <label for="tip-5" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Weights published without a safety card</li>
+                    <li>Researchers split on disclosure norms</li>
+                    <li>Downloads already in the tens of thousands</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Models</span><span class="tag">Governance</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AD ZONE 2 — bottom of the left column only, ~3 headline-heights. Dormant = zero footprint. -->
+          <div class="ad-zone ad-zone--column" id="ad-zone-2" data-ad-zone="2"></div>
+
+        </div>
+
+        <!-- Column 2 -->
+        <div class="wire-col">
+
+          <div class="story" data-story-id="story-6">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-6" target="_blank" rel="noopener noreferrer">Peer-reviewed study finds diminishing returns from larger pretraining runs</a>
+                <span class="source">Nature</span>
+                <input type="checkbox" id="tip-6" class="tip-toggle">
+                <label for="tip-6" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Study spans several model families</li>
+                    <li>Gains flatten past a compute threshold</li>
+                    <li>Authors call for efficiency-focused benchmarks</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Research</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-7">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-7" target="_blank" rel="noopener noreferrer">Cloud provider reports AI workloads now majority of new compute demand</a>
+                <span class="source">Financial Times</span>
+                <input type="checkbox" id="tip-7" class="tip-toggle">
+                <label for="tip-7" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Figure disclosed in latest earnings call</li>
+                    <li>Capacity constraints flagged for next two quarters</li>
+                    <li>New data center sites announced in three regions</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Infrastructure</span><span class="tag">Business</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-8">
+            <div class="story-body">
+              <div class="story-img" role="img" aria-label="Story image placeholder"></div>
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-8" target="_blank" rel="noopener noreferrer">Lawmakers introduce draft bill on AI-generated content labeling</a>
+                <span class="source">Axios</span>
+                <input type="checkbox" id="tip-8" class="tip-toggle">
+                <label for="tip-8" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Bill would require visible labels on synthetic media</li>
+                    <li>Enforcement mechanism still under discussion</li>
+                    <li>Industry groups signal mixed reaction</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Governance</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-9">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-9" target="_blank" rel="noopener noreferrer">Enterprise survey finds most AI pilots still stall before production</a>
+                <span class="source">Wired</span>
+                <input type="checkbox" id="tip-9" class="tip-toggle">
+                <label for="tip-9" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Survey covers several hundred enterprise teams</li>
+                    <li>Data quality cited as top blocker</li>
+                    <li>Budget for pilots still rising year over year</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Applications</span><span class="tag">Business</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-10">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-10" target="_blank" rel="noopener noreferrer">Court filing reveals details of ongoing dispute over training data licensing</a>
+                <span class="source">AP</span>
+                <input type="checkbox" id="tip-10" class="tip-toggle">
+                <label for="tip-10" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Filing is part of a broader ongoing case</li>
+                    <li>Both sides dispute the scope of prior agreements</li>
+                    <li>Next hearing scheduled for later this year</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Governance</span><span class="tag">Business</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Column 3 -->
+        <div class="wire-col">
+
+          <div class="story" data-story-id="story-11">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-11" target="_blank" rel="noopener noreferrer">New benchmark suite aims to measure real-world agent reliability</a>
+                <span class="source">VentureBeat</span>
+                <input type="checkbox" id="tip-11" class="tip-toggle">
+                <label for="tip-11" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Benchmark focuses on multi-step task completion</li>
+                    <li>Early results show wide gaps between models</li>
+                    <li>Suite released as open source</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Research</span><span class="tag">Models</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-12">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-12" target="_blank" rel="noopener noreferrer">Government agency pilots AI system for processing public records requests</a>
+                <span class="source">Reuters</span>
+                <input type="checkbox" id="tip-12" class="tip-toggle">
+                <label for="tip-12" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Pilot limited to one department for now</li>
+                    <li>Human staff review all outputs before release</li>
+                    <li>Full rollout decision expected next year</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Governance</span><span class="tag">Applications</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-13">
+            <div class="story-body">
+              <div class="story-img" role="img" aria-label="Story image placeholder"></div>
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-13" target="_blank" rel="noopener noreferrer">Data center operator announces expansion amid rising power demand concerns</a>
+                <span class="source">Bloomberg</span>
+                <input type="checkbox" id="tip-13" class="tip-toggle">
+                <label for="tip-13" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Expansion adds capacity across two sites</li>
+                    <li>Local utilities flag grid capacity questions</li>
+                    <li>Company commits to efficiency targets</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Infrastructure</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-14">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-14" target="_blank" rel="noopener noreferrer">Healthcare system expands AI-assisted triage tool to additional hospitals</a>
+                <span class="source">STAT</span>
+                <input type="checkbox" id="tip-14" class="tip-toggle">
+                <label for="tip-14" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Tool flags urgent cases for clinician review</li>
+                    <li>Independent audit of accuracy planned</li>
+                    <li>Expansion follows a year-long trial</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Applications</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="story" data-story-id="story-15">
+            <div class="story-body">
+              <div class="story-text">
+                <a class="headline" href="https://example.com/story-15" target="_blank" rel="noopener noreferrer">Analysts debate whether current AI infrastructure spending pace is sustainable</a>
+                <span class="source">The Economist</span>
+                <input type="checkbox" id="tip-15" class="tip-toggle">
+                <label for="tip-15" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+                <div class="tooltip">
+                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+                  <ul>
+                    <li>Spending has grown faster than revenue at several firms</li>
+                    <li>Analysts split on near-term correction risk</li>
+                    <li>Capex guidance due next earnings cycle</li>
+                  </ul>
+                  <div class="tags"><span class="tag">Business</span><span class="tag">Infrastructure</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AD ZONE 3 — mid right column, placed after the 5th (last) sample headline in this column, ~3 headline-heights. Dormant = zero footprint. -->
+          <div class="ad-zone ad-zone--column" id="ad-zone-3" data-ad-zone="3"></div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <nav class="footer-nav" aria-label="Site navigation">
+        <a href="/archive">Archive</a>
+        <a href="/about">About</a>
+      </nav>
+
+      <!-- SOCIAL LINKS: production currently has NO social links or verified account URLs
+           (checked index.html and about.html — footer only has Home/Archive/About/mailto).
+           The URLs in an earlier draft pass were invented placeholders, not verified accounts.
+           Rendered as non-linking placeholders until real accounts are confirmed. -->
+      <nav class="social" aria-label="Social media (accounts not yet established)">
+        <span class="social-placeholder" aria-disabled="true">X</span>
+        <span class="social-placeholder" aria-disabled="true">TikTok</span>
+        <span class="social-placeholder" aria-disabled="true">LinkedIn</span>
+        <span class="social-placeholder" aria-disabled="true">Instagram</span>
+        <span class="social-placeholder" aria-disabled="true">Facebook</span>
+        <span class="social-placeholder" aria-disabled="true">YouTube</span>
+        <span class="social-placeholder" aria-disabled="true">Bluesky</span>
+      </nav>
+
+      <!-- Search and mailing-list signup intentionally removed from the homepage
+           (2026-08-12 architecture pass) — no longer homepage requirements. -->
+
+      <p class="copyright">&copy; 2026 AInetWatch. All headlines link to original reporting.</p>
+    </div>
+  </footer>
+
+  <!--
+    Cypher interaction — minimal vanilla JS, no library, no framework.
+    Primary content above needs none of this to render or be crawled.
+  -->
+  <script>
+  (function () {
+    var trigger = document.getElementById('cypher-trigger');
+    var float = document.getElementById('cypher-float');
+    var closeBtn = document.getElementById('cypher-float-close');
+    var video = document.getElementById('cypher-video');
+
+    function openCypher() {
+      float.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      video.currentTime = 0;
+      video.play();
+      document.addEventListener('keydown', onKeydown);
+      document.addEventListener('pointerdown', onOutsideClick, true);
+    }
+
+    function closeCypher() {
+      float.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      video.pause();
+      video.currentTime = 0;
+      document.removeEventListener('keydown', onKeydown);
+      document.removeEventListener('pointerdown', onOutsideClick, true);
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Escape') closeCypher();
+    }
+
+    function onOutsideClick(e) {
+      if (!float.contains(e.target) && !trigger.contains(e.target)) closeCypher();
+    }
+
+    trigger.addEventListener('click', function () {
+      if (float.hidden) openCypher(); else closeCypher();
+    });
+    closeBtn.addEventListener('click', closeCypher);
+    video.addEventListener('ended', closeCypher);
+  })();
+  </script>
+
+</body>
+</html>
