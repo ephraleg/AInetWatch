@@ -7,7 +7,7 @@ Handoff file for future Claude Code sessions. Read this first — don't rediscov
 - **AINWA-001** Discovery registry and sourcing policy — complete
 - **AINWA-002** Human review console — complete
 - **AINWA-003** Registry-driven ingestion v1 — complete
-- **Next issue: #82** — normalize, filter, and deduplicate discovery candidates
+- **AINWA-004** Normalize, filter, and deduplicate discovery candidates — complete (issue #82 closed)
 
 ## Key implementation facts
 
@@ -18,8 +18,11 @@ Handoff file for future Claude Code sessions. Read this first — don't rediscov
 - Approved records are human-approved and locked
 - Review console hardening tests: 33 passing
 - Ingestion tests: 54 passing
+- Filter tests: 53 passing
 - First real ingestion run: 537 items, 0 errors, 9 skipped
+- First real filter run: 537 in → 167 stale dropped → 370 out (0 URL-dedup, 0 title-dedup drops)
 - Ingestion does **not**: call Claude/Grok/Gemini, fetch article pages, write the candidate queue, schedule, or publish
+- Filter does **not**: call Claude/Grok/Gemini, fetch article pages, write the candidate queue, or publish
 
 ## Security boundaries already implemented
 
@@ -49,6 +52,7 @@ Handoff file for future Claude Code sessions. Read this first — don't rediscov
 
 ## Current commits
 
+- `e7d65ed` — AINWA-004 filter v1
 - `44db145` — AINWA-003 ingestion v1
 - `b6b8f47` — homepage drafts/assets/docs/research workbooks/root gitignore baseline commit
 
@@ -67,4 +71,4 @@ Handoff file for future Claude Code sessions. Read this first — don't rediscov
 
 ## Next session
 
-Start by reading this file, checking the existing Graphify graph, and reviewing GitHub issue #82. Do not redo completed discovery/review/ingestion work.
+Start by reading this file and checking the existing Graphify graph. Do not redo AINWA-001 through AINWA-004. The pipeline so far: ingest.py → raw-discovery.json → filter.py → filtered-discovery.json. Next step is AI-assisted candidate generation (reads filtered-discovery.json, writes candidate-queue.json).
