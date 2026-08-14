@@ -1,0 +1,47 @@
+{
+  "_note": "Static schema reference for filtered-discovery.json produced by filter.py. Not read or written by any pipeline component. The real file (gitignored) is overwritten on every filter run.",
+  "version": 1,
+  "source_run_id": "2026-08-13T19:53:22Z",
+  "filtered_at": "2026-08-13T20:01:00Z",
+  "input_count": 537,
+  "output_count": 370,
+  "stale_cutoff_hours": 48.0,
+  "dropped": {
+    "stale": 167,
+    "url_dedup": 0,
+    "title_dedup": 0
+  },
+  "items": [
+    {
+      "_comment": "All original raw-discovery fields are preserved verbatim. Two fields are added by filter.py.",
+      "item_id": "raw-SRC-018-a3f9b2c1",
+      "source_id": "SRC-018",
+      "source_name": "TechCrunch",
+      "source_domain": "techcrunch.com",
+      "source_priority": "high",
+      "source_role": "Original Reporting",
+      "source_citation_allowed": "yes",
+      "source_reliability": "high",
+      "fetch_method": "rss",
+      "feed_url": "https://techcrunch.com/feed/",
+      "fetched_at": "2026-08-13T17:30:00Z",
+      "item_url": "https://techcrunch.com/2026/08/13/example-story/?utm_source=rss",
+      "item_title": "Example original headline exactly as it appears in the feed",
+      "item_published": "Wed, 13 Aug 2026 10:00:00 +0000",
+      "feed_description": "<p>Raw HTML from the feed description element.</p>",
+      "feed_description_format": "html",
+      "canonical_url": "https://techcrunch.com/2026/08/13/example-story",
+      "age_hours": 7.89
+    }
+  ],
+  "_schema_notes": {
+    "source_run_id": "The run_id from the source raw-discovery.json — links filtered output back to the ingestion run.",
+    "filtered_at": "ISO 8601 UTC timestamp of when filter.py ran.",
+    "stale_cutoff_hours": "Items published more than this many hours before source_run_id were rejected. Controlled by --stale-hours CLI arg (default 48).",
+    "dropped.stale": "Count of items rejected because item_published age exceeded stale_cutoff_hours.",
+    "dropped.url_dedup": "Count of items dropped because their canonical_url matched an earlier item in the same run.",
+    "dropped.title_dedup": "Count of items dropped because their title fingerprint (first 10 words, lowercased, punctuation stripped) matched an earlier item. Tie-break: Original Reporting preferred over Discovery Only; then earliest item_published.",
+    "canonical_url": "Added by filter.py. Normalized form of item_url: lowercase scheme/host, trailing path slash removed, tracking params stripped, fragment dropped. Used for deduplication. item_url is never modified.",
+    "age_hours": "Added by filter.py. Hours between item_published and source_run_id, rounded to 2 decimal places. null when item_published was absent or unparseable."
+  }
+}

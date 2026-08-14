@@ -1,5 +1,6 @@
-# Generated ingestion output — re-created on every run
+# Generated pipeline output — re-created on every run
 data/raw-discovery.json
+data/filtered-discovery.json
 
 # Python bytecode cache
 __pycache__/
