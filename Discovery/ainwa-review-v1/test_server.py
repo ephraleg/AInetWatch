@@ -108,7 +108,7 @@ def make_candidate(cid, url="https://example.com/story", headline="Example origi
         "source": {"name": "Example News", "url": url, "role": "Original Reporting", "reliability": "High", "paywall": False},
         "proposal": {
             "headline": "EXAMPLE PROPOSED HEADLINE",
-            "summary": ["a", "b", "c"],
+            "public_summary": ["a", "b", "c"],
             "category": "Models",
             "priority": "High",
             "top_story": False,
@@ -158,7 +158,7 @@ def main():
         check("approved-queue.json contains cand-A", any(s.get("id") == "cand-A" for s in approved.get("stories", [])))
 
         # --- edit & approve works ---
-        edits = {"headline": "EDITED HEADLINE", "summary": ["x", "y"], "category": "Security", "priority": "High", "top_story": True, "developing": False, "paywall": False}
+        edits = {"headline": "EDITED HEADLINE", "public_summary": ["x", "y"], "category": "Security", "priority": "High", "top_story": True, "developing": False, "paywall": False}
         status, body, _ = request("POST", "/api/review", base, body={"id": "cand-B", "action": "edit_approve", "edits": edits}, headers=good_headers)
         check("edit_approve works", status == 200 and body.get("ok") is True, f"{status} {body}")
         approved = json.loads((data_dir / "approved-queue.json").read_text())
@@ -327,8 +327,69 @@ def main():
         approved = json.loads((data_dir / "approved-queue.json").read_text())
         rec = next((s for s in approved["stories"] if s["id"] == "lang-regression"), None)
         check("English approval still has all pre-existing approved.* fields",
-              rec is not None and set(rec["approved"].keys()) >= {"headline", "summary", "category", "priority", "top_story", "developing", "paywall", "approved_at", "approved_by", "locked"},
+              rec is not None and set(rec["approved"].keys()) >= {"headline", "public_summary", "category", "priority", "top_story", "developing", "paywall", "approved_at", "approved_by", "locked"},
               str(rec))
+
+        # --- AINWA-006: generate.py-shaped candidate round-trip ---
+        # A candidate carrying public_summary, editorial_notes, and advisory
+        # (the shape generate.py writes) must produce an approved record where:
+        # (a) approved.public_summary matches the proposal,
+        # (b) editorial_notes is absent from the approved record entirely,
+        # (c) advisory is absent from the approved record entirely.
+        generate_candidate = {
+            "id": "gen-001",
+            "status": "review",
+            "rank": 1,
+            "original_headline": "Source headline from feed",
+            "source": {"name": "Example News", "url": "https://example.com/gen", "role": "Original Reporting", "reliability": "High", "paywall": False},
+            "proposal": {
+                "headline": "GENERATE PY CANDIDATE HEADLINE",
+                "public_summary": ["What happened.", "Why it matters.", "Who is affected."],
+                "editorial_notes": "Source quality: high. No dedup concerns. Reviewer-only.",
+                "category": "Models",
+                "priority": "High",
+                "top_story": False,
+                "developing": False,
+            },
+            "advisory": {
+                "grok": {"status": "skipped", "reason": "GROK_API_KEY not set"},
+                "gemini": {"status": "skipped", "reason": "GEMINI_API_KEY not set"},
+            },
+            "discovered_at": "2026-08-16T10:00:00Z",
+        }
+        seed(data_dir, candidates=[generate_candidate], approved=[])
+        status, body, _ = request("POST", "/api/review", base, body={"id": "gen-001", "action": "approve"}, headers=good_headers)
+        check("generate.py-shaped candidate approves successfully", status == 200 and (body or {}).get("ok") is True, f"{status} {body}")
+        approved = json.loads((data_dir / "approved-queue.json").read_text())
+        gen_rec = next((s for s in approved.get("stories", []) if s.get("id") == "gen-001"), None)
+        check("approved.public_summary matches proposal public_summary",
+              gen_rec is not None and gen_rec["approved"]["public_summary"] == ["What happened.", "Why it matters.", "Who is affected."],
+              str(gen_rec))
+        check("editorial_notes absent from approved record",
+              gen_rec is not None and "editorial_notes" not in gen_rec["approved"],
+              str(gen_rec["approved"] if gen_rec else None))
+        check("advisory absent from approved record",
+              gen_rec is not None and "advisory" not in gen_rec,
+              str(list(gen_rec.keys()) if gen_rec else None))
+
+        # --- AINWA-007: normalize_language null-safe + public_summary key consistency ---
+        # normalize_language(None) must return the safe default without blocking approval.
+        # A localization entry carrying "public_summary" (the canonical field name for
+        # reader-facing content in localizations) must pass through correctly.
+        valid_localization_ps = {
+            "source_language": "en",
+            "localizations": {
+                "es": {"status": "pending", "headline": None, "public_summary": None, "approved_at": None}
+            }
+        }
+        seed(data_dir, candidates=[make_candidate("lang-ps", language=valid_localization_ps)], approved=[])
+        status, body, _ = request("POST", "/api/review", base, body={"id": "lang-ps", "action": "approve"}, headers=good_headers)
+        check("approve succeeds for candidate with public_summary localization key", status == 200, f"{status} {body}")
+        approved = json.loads((data_dir / "approved-queue.json").read_text())
+        ps_rec = next((s for s in approved["stories"] if s.get("id") == "lang-ps"), None)
+        check("localization entry with public_summary key preserved on approved record",
+              ps_rec is not None and ps_rec.get("language") == valid_localization_ps,
+              str(ps_rec))
 
     finally:
         proc.terminate()

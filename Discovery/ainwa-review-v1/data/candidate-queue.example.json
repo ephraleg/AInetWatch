@@ -1,6 +1,9 @@
 {
   "version": 1,
   "generated_at": "2026-08-13T17:30:00Z",
+  "model": "claude-sonnet-4-6",
+  "input_count": 370,
+  "excluded_approved": 0,
   "_language_note": "Candidates are English-only working data in v1 and do not carry a 'language' field during review. The server adds language.source_language/localizations to the APPROVED record automatically at approval time (see server.py normalize_language() and data/approved-queue.example.json) — translation only ever happens after English approval, never during candidacy.",
   "candidates": [
     {
@@ -17,17 +20,20 @@
       },
       "proposal": {
         "headline": "EXAMPLE AINETWATCH HEADLINE",
-        "summary": [
+        "public_summary": [
           "What happened, stated briefly.",
           "Why the development matters.",
-          "Important context for the reader."
+          "What changes or who is affected."
         ],
+        "editorial_notes": "Source quality: high, original reporting with direct access. No material duplicate in the current batch.",
         "category": "Models",
         "priority": "High",
         "top_story": true,
-        "developing": false,
-        "why_selected": "High-impact development from a strong original source.",
-        "duplicate_note": "No material duplicate in the current batch."
+        "developing": false
+      },
+      "advisory": {
+        "grok": {"status": "skipped", "reason": "GROK_API_KEY not set"},
+        "gemini": {"status": "skipped", "reason": "GEMINI_API_KEY not set"}
       },
       "discovered_at": "2026-08-13T17:20:00Z"
     }

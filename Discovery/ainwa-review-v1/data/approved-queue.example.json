@@ -14,10 +14,10 @@
       },
       "approved": {
         "headline": "EXAMPLE AINETWATCH HEADLINE",
-        "summary": [
+        "public_summary": [
           "What happened, stated briefly.",
           "Why the development matters.",
-          "Important context for the reader."
+          "What changes or who is affected."
         ],
         "category": "Models",
         "priority": "High",
@@ -46,7 +46,7 @@
       },
       "approved": {
         "headline": "EXAMPLE OF AN ALREADY-APPROVED ENGLISH HEADLINE",
-        "summary": [
+        "public_summary": [
           "This is the authoritative, human-approved English content.",
           "A future translation stage would derive from exactly this.",
           "It would never regenerate or reinterpret the story independently."

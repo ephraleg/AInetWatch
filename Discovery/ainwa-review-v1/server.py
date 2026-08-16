@@ -236,12 +236,16 @@ def normalized_source(candidate: dict) -> dict:
 
 def normalized_proposal(candidate: dict) -> dict:
     proposal = candidate.get("proposal") if isinstance(candidate.get("proposal"), dict) else {}
-    summary = proposal.get("summary", candidate.get("summary", []))
-    if isinstance(summary, str):
-        summary = [summary]
+    # public_summary is the new canonical name (AINWA-006). Fall back to the
+    # legacy "summary" key so old-format candidates still render correctly.
+    raw_summary = proposal.get("public_summary") or proposal.get("summary") or candidate.get("summary") or []
+    if isinstance(raw_summary, str):
+        raw_summary = [raw_summary]
     return {
         "headline": proposal.get("headline") or candidate.get("ainetwatch_headline") or candidate.get("proposed_headline") or "",
-        "summary": summary or [],
+        "public_summary": raw_summary or [],
+        # editorial_notes is reviewer-only and must never enter an approved record.
+        "editorial_notes": str(proposal.get("editorial_notes") or candidate.get("editorial_notes") or ""),
         "category": proposal.get("category") or candidate.get("category") or "",
         "priority": proposal.get("priority") or candidate.get("priority") or candidate.get("priority_score") or "",
         "top_story": bool(proposal.get("top_story", candidate.get("top_story", False))),
@@ -256,16 +260,20 @@ def make_approved(candidate: dict, edits: dict) -> dict:
     # finding #5) — this function no longer does `edits or {}` fallback.
     source = normalized_source(candidate)
     proposal = normalized_proposal(candidate)
-    summary = edits.get("summary", proposal["summary"])
-    if isinstance(summary, str):
-        summary = [line.strip() for line in summary.splitlines() if line.strip()]
+    # Accept new "public_summary" key from the console; fall back to legacy
+    # "summary" key so old edit payloads still work during transition.
+    public_summary = edits.get("public_summary") or edits.get("summary") or proposal["public_summary"]
+    if isinstance(public_summary, str):
+        public_summary = [line.strip() for line in public_summary.splitlines() if line.strip()]
 
     approved = {
         "id": candidate.get("id"),
         "source": source,
         "approved": {
             "headline": edits.get("headline", proposal["headline"]),
-            "summary": summary,
+            # editorial_notes must never enter the approved record — it is
+            # reviewer-only context and is explicitly omitted here.
+            "public_summary": public_summary,
             "category": edits.get("category", proposal["category"]),
             "priority": edits.get("priority", proposal["priority"]),
             "top_story": bool(edits.get("top_story", proposal["top_story"])),
