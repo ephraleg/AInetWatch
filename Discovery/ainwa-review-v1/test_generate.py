@@ -58,7 +58,7 @@ def _item(item_id="raw-SRC-001-aabbccdd", source_name="Example News",
     }
 
 
-def _selection(item_id="raw-SRC-001-aabbccdd",
+def _selection(item_id=1,
                headline="EXAMPLE AI HEADLINE",
                public_summary=None,
                editorial_notes="Source quality: high. No dedup concerns.",
@@ -85,11 +85,33 @@ def _selection(item_id="raw-SRC-001-aabbccdd",
 
 
 def _make_item_lookup(*items):
-    return {i["item_id"]: i for i in items}
+    return {i + 1: items[i] for i in range(len(items))}
 
 
 def _no_advisory():
     return {}, {}, False, False
+
+
+def _structured_response(anchor_selections=None, non_anchor_stories=None, ranking=None):
+    """Build a mock Claude response in the structured anchor-slot format."""
+    slots = {src: None for src in generate.ANCHOR_SOURCES}
+    if anchor_selections:
+        slots.update(anchor_selections)
+    stories = non_anchor_stories or []
+    if ranking is None:
+        ids = []
+        for src in sorted(generate.ANCHOR_SOURCES):
+            s = slots.get(src)
+            if s is not None:
+                ids.append(s["item_id"])
+        for s in stories:
+            ids.append(s["item_id"])
+        ranking = ids
+    return json.dumps({
+        "anchor_slots": slots,
+        "non_anchor_stories": stories,
+        "ranking": ranking,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +194,7 @@ class TestBuildCandidatesSchema(unittest.TestCase):
     def test_candidate_count_capped_at_max(self):
         items = [_item(item_id=f"raw-SRC-001-{i:08x}", canonical_url=f"https://example.com/{i}")
                  for i in range(20)]
-        selections = [_selection(item_id=i["item_id"]) for i in items]
+        selections = [_selection(item_id=i+1) for i in range(len(items))]
         candidates = generate.build_candidates(
             selections, _make_item_lookup(*items), {}, {}, False, False
         )
@@ -181,7 +203,7 @@ class TestBuildCandidatesSchema(unittest.TestCase):
     def test_rank_assigned_sequentially(self):
         items = [_item(item_id=f"raw-SRC-001-{i:08x}", canonical_url=f"https://example.com/{i}")
                  for i in range(3)]
-        selections = [_selection(item_id=i["item_id"]) for i in items]
+        selections = [_selection(item_id=i+1) for i in range(len(items))]
         candidates = generate.build_candidates(
             selections, _make_item_lookup(*items), {}, {}, False, False
         )
@@ -222,7 +244,7 @@ class TestAdvisory(unittest.TestCase):
 
     def test_grok_result_stored_when_available(self):
         item = _item()
-        grok_results = {item["item_id"]: {"status": "ok", "assessment": "agree", "notes": "Looks good."}}
+        grok_results = {"1": {"status": "ok", "assessment": "agree", "notes": "Looks good."}}
         candidates = generate.build_candidates(
             [_selection()], _make_item_lookup(item), grok_results, {}, True, False
         )
@@ -231,7 +253,7 @@ class TestAdvisory(unittest.TestCase):
 
     def test_gemini_result_stored_when_available(self):
         item = _item()
-        gemini_results = {item["item_id"]: {"status": "ok", "assessment": "flag", "notes": "Check source."}}
+        gemini_results = {"1": {"status": "ok", "assessment": "flag", "notes": "Check source."}}
         candidates = generate.build_candidates(
             [_selection()], _make_item_lookup(item), {}, gemini_results, False, True
         )
@@ -241,7 +263,7 @@ class TestAdvisory(unittest.TestCase):
     def test_grok_exception_is_non_blocking(self):
         """Grok failure must not prevent candidate file from being written."""
         item = _item()
-        CLAUDE_RESPONSE = json.dumps([_selection()])
+        CLAUDE_RESPONSE = _structured_response(non_anchor_stories=[_selection()])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             d = Path(tmpdir)
@@ -264,7 +286,7 @@ class TestAdvisory(unittest.TestCase):
 
     def test_gemini_exception_is_non_blocking(self):
         item = _item()
-        CLAUDE_RESPONSE = json.dumps([_selection()])
+        CLAUDE_RESPONSE = _structured_response(non_anchor_stories=[_selection()])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             d = Path(tmpdir)
@@ -321,7 +343,7 @@ class TestMain(unittest.TestCase):
         """approved-queue.json must be identical before and after generate.py runs."""
         item = _item()
         original_approved = json.dumps({"stories": []})
-        CLAUDE_RESPONSE = json.dumps([_selection()])
+        CLAUDE_RESPONSE = _structured_response(non_anchor_stories=[_selection()])
 
         rc, _, approved_after = self._run_main([item], [], CLAUDE_RESPONSE)
         self.assertEqual(rc, 0)
@@ -332,8 +354,8 @@ class TestMain(unittest.TestCase):
         approved_url = "https://example.com/story"
         item = _item(canonical_url=approved_url)
         approved_stories = [{"source": {"url": approved_url}, "approved": {"locked": True}}]
-        # Claude selection prompt would exclude item, so return empty list
-        CLAUDE_RESPONSE = json.dumps([])
+        # Claude selection prompt would exclude item, so return empty selections
+        CLAUDE_RESPONSE = _structured_response()
 
         rc, candidates_text, _ = self._run_main([item], approved_stories, CLAUDE_RESPONSE)
         self.assertEqual(rc, 0)
@@ -363,7 +385,7 @@ class TestMain(unittest.TestCase):
 
     def test_candidates_written_with_correct_schema(self):
         item = _item()
-        CLAUDE_RESPONSE = json.dumps([_selection()])
+        CLAUDE_RESPONSE = _structured_response(non_anchor_stories=[_selection()])
         rc, candidates_text, _ = self._run_main([item], [], CLAUDE_RESPONSE)
         self.assertEqual(rc, 0)
         result = json.loads(candidates_text)
@@ -377,7 +399,7 @@ class TestMain(unittest.TestCase):
 
     def test_skip_advisory_flag_skips_both_advisors(self):
         item = _item()
-        CLAUDE_RESPONSE = json.dumps([_selection()])
+        CLAUDE_RESPONSE = _structured_response(non_anchor_stories=[_selection()])
         # Even with keys set, --skip-advisory must skip both
         rc, candidates_text, _ = self._run_main(
             [item], [], CLAUDE_RESPONSE,
@@ -392,7 +414,7 @@ class TestMain(unittest.TestCase):
     def test_claude_markdown_fence_stripped(self):
         """Claude sometimes wraps JSON in ```json ... ``` — must be handled."""
         item = _item()
-        wrapped = "```json\n" + json.dumps([_selection()]) + "\n```"
+        wrapped = "```json\n" + _structured_response(non_anchor_stories=[_selection()]) + "\n```"
         rc, candidates_text, _ = self._run_main([item], [], wrapped)
         self.assertEqual(rc, 0)
         result = json.loads(candidates_text)
@@ -498,36 +520,33 @@ class TestAnchorCap(unittest.TestCase):
     def test_anchor_cap_allows_first_drops_second(self):
         tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-aaaa0001")
         tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-aaaa0002")
-        lookup = {tc1["item_id"]: tc1, tc2["item_id"]: tc2}
-        selections = [
-            {"item_id": tc1["item_id"]},
-            {"item_id": tc2["item_id"]},
-        ]
+        lookup = {1: tc1, 2: tc2}
+        selections = [{"item_id": 1}, {"item_id": 2}]
         result = generate._enforce_anchor_cap(selections, lookup)
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["item_id"], tc1["item_id"])
+        self.assertEqual(result[0]["item_id"], 1)
 
     def test_anchor_cap_different_anchors_both_allowed(self):
         tc = self._anchor_item("TechCrunch", "raw-SRC-018-tc000001")
         bc = self._anchor_item("BleepingComputer", "raw-SRC-024-bc000001")
-        lookup = {tc["item_id"]: tc, bc["item_id"]: bc}
-        selections = [{"item_id": tc["item_id"]}, {"item_id": bc["item_id"]}]
+        lookup = {1: tc, 2: bc}
+        selections = [{"item_id": 1}, {"item_id": 2}]
         result = generate._enforce_anchor_cap(selections, lookup)
         self.assertEqual(len(result), 2)
 
     def test_anchor_cap_non_anchor_not_affected(self):
         non_anchor = self._anchor_item("CNBC", "raw-SRC-017-cn000001")
         non_anchor2 = self._anchor_item("CNBC", "raw-SRC-017-cn000002")
-        lookup = {non_anchor["item_id"]: non_anchor, non_anchor2["item_id"]: non_anchor2}
-        selections = [{"item_id": non_anchor["item_id"]}, {"item_id": non_anchor2["item_id"]}]
+        lookup = {1: non_anchor, 2: non_anchor2}
+        selections = [{"item_id": 1}, {"item_id": 2}]
         result = generate._enforce_anchor_cap(selections, lookup)
         self.assertEqual(len(result), 2)
 
     def test_anchor_cap_no_filler_added(self):
         tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-fill0001")
         tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-fill0002")
-        lookup = {tc1["item_id"]: tc1, tc2["item_id"]: tc2}
-        selections = [{"item_id": tc1["item_id"]}, {"item_id": tc2["item_id"]}]
+        lookup = {1: tc1, 2: tc2}
+        selections = [{"item_id": 1}, {"item_id": 2}]
         result = generate._enforce_anchor_cap(selections, lookup)
         # Only 1 returned — no extra item was added to fill the gap
         self.assertEqual(len(result), 1)
@@ -599,7 +618,7 @@ class TestCarryoverMerge(unittest.TestCase):
         """New candidates appear before carryover in the written file."""
         new_item = _item(item_id="raw-SRC-001-new00001", canonical_url="https://example.com/new")
         carryover_item = dict(self._candidate("review", hours_old=24, item_id="raw-SRC-001-carry01"))
-        CLAUDE_RESPONSE = json.dumps([_selection(item_id=new_item["item_id"])])
+        CLAUDE_RESPONSE = _structured_response(non_anchor_stories=[_selection(item_id=1)])
 
         with tempfile.TemporaryDirectory() as tmpdir:
             d = Path(tmpdir)
@@ -617,6 +636,182 @@ class TestCarryoverMerge(unittest.TestCase):
         ids = [c["id"] for c in result["candidates"]]
         self.assertEqual(ids[0], new_item["item_id"])
         self.assertEqual(ids[-1], carryover_item["id"])
+
+
+
+class TestIndexSelection(unittest.TestCase):
+    """Claude's integer item_id maps deterministically to exact source records."""
+
+    def test_valid_index_maps_to_correct_item(self):
+        item_a = _item(item_id="raw-SRC-001-aaaa", canonical_url="https://example.com/a")
+        item_b = _item(item_id="raw-SRC-002-bbbb", canonical_url="https://example.com/b",
+                       source_name="Other News")
+        sel_b = dict(_selection(item_id=2))  # select index 2 (item_b)
+        lookup = {1: item_a, 2: item_b}
+        candidates = generate.build_candidates(
+            [sel_b], lookup, {}, {}, False, False
+        )
+        self.assertEqual(len(candidates), 1)
+        self.assertEqual(candidates[0]["id"], "raw-SRC-002-bbbb")
+
+    def test_original_headline_is_verbatim_item_title(self):
+        verbatim_title = "Exact title from the feed — punctuation preserved!"
+        item = _item(item_id="raw-SRC-001-prov", item_title=verbatim_title)
+        lookup = {1: item}
+        candidates = generate.build_candidates(
+            [_selection(item_id=1)], lookup, {}, {}, False, False
+        )
+        self.assertEqual(candidates[0]["original_headline"], verbatim_title)
+
+    def test_candidate_id_is_feed_item_id_not_sequence_number(self):
+        item = _item(item_id="raw-SRC-046-fedid1")
+        lookup = {5: item}  # placed at index 5
+        sel = dict(_selection(item_id=5))
+        candidates = generate.build_candidates(
+            [sel], lookup, {}, {}, False, False
+        )
+        self.assertEqual(candidates[0]["id"], "raw-SRC-046-fedid1")
+        self.assertNotEqual(candidates[0]["id"], 5)
+
+    def test_non_integer_item_id_skipped(self):
+        item = _item(item_id="raw-SRC-001-xxxx")
+        lookup = {1: item}
+        sel = {"item_id": "raw-SRC-001-xxxx", "brief_headline": "BAD", "public_summary": [],
+               "editorial_notes": "", "category": "Models", "priority": "High",
+               "top_story": False, "developing": False}
+        candidates = generate.build_candidates(
+            [sel], lookup, {}, {}, False, False
+        )
+        self.assertEqual(candidates, [])
+
+    def test_out_of_range_index_skipped(self):
+        item = _item(item_id="raw-SRC-001-range")
+        lookup = {1: item}
+        sel = dict(_selection(item_id=999))  # 999 not in lookup
+        candidates = generate.build_candidates(
+            [sel], lookup, {}, {}, False, False
+        )
+        self.assertEqual(candidates, [])
+
+
+# ---------------------------------------------------------------------------
+# Structured response contract tests
+# ---------------------------------------------------------------------------
+
+class TestStructuredResponseContract(unittest.TestCase):
+    """_parse_claude_response maps the anchor-slot JSON object to a flat ordered list."""
+
+    def _lookup(self, *items):
+        return {i + 1: items[i] for i in range(len(items))}
+
+    def _raw(self, anchor_slots=None, non_anchor_stories=None, ranking=None):
+        slots = {src: None for src in generate.ANCHOR_SOURCES}
+        if anchor_slots:
+            slots.update(anchor_slots)
+        return json.dumps({
+            "anchor_slots": slots,
+            "non_anchor_stories": non_anchor_stories or [],
+            "ranking": ranking or [],
+        })
+
+    def test_all_anchor_slots_null_yields_no_candidates(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        result = generate._parse_claude_response(self._raw(), lookup)
+        self.assertEqual(result, [])
+
+    def test_filled_anchor_slot_yields_one_candidate(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(anchor_slots={"TechCrunch": sel}, ranking=[1]), lookup
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["item_id"], 1)
+
+    def test_non_anchor_stories_mapped_correctly(self):
+        lookup = {1: _item(source_name="CNBC")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=[sel], ranking=[1]), lookup
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["item_id"], 1)
+
+    def test_ranking_determines_order_across_anchor_and_non_anchor(self):
+        item_a = _item(item_id="raw-SRC-001-aa", canonical_url="https://example.com/a",
+                       source_name="TechCrunch")
+        item_b = _item(item_id="raw-SRC-002-bb", canonical_url="https://example.com/b",
+                       source_name="CNBC")
+        lookup = {1: item_a, 2: item_b}
+        # anchor=1, non_anchor=2, ranking puts non-anchor first
+        result = generate._parse_claude_response(
+            self._raw(
+                anchor_slots={"TechCrunch": dict(_selection(item_id=1))},
+                non_anchor_stories=[dict(_selection(item_id=2))],
+                ranking=[2, 1],
+            ),
+            lookup,
+        )
+        self.assertEqual([r["item_id"] for r in result], [2, 1])
+
+    def test_non_integer_item_id_in_anchor_slot_skipped(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        sel = dict(_selection(item_id="not-an-int"))
+        result = generate._parse_claude_response(
+            self._raw(anchor_slots={"TechCrunch": sel}), lookup
+        )
+        self.assertEqual(result, [])
+
+    def test_out_of_range_index_in_anchor_slot_skipped(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        sel = dict(_selection(item_id=999))
+        result = generate._parse_claude_response(
+            self._raw(anchor_slots={"TechCrunch": sel}, ranking=[999]), lookup
+        )
+        self.assertEqual(result, [])
+
+    def test_out_of_range_index_in_non_anchor_skipped(self):
+        lookup = {1: _item(source_name="CNBC")}
+        sel = dict(_selection(item_id=999))
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=[sel], ranking=[999]), lookup
+        )
+        self.assertEqual(result, [])
+
+    def test_duplicate_item_id_across_anchor_and_non_anchor_deduplicated(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(
+                anchor_slots={"TechCrunch": dict(sel)},
+                non_anchor_stories=[dict(sel)],
+                ranking=[1],
+            ),
+            lookup,
+        )
+        self.assertEqual(len(result), 1)
+
+    def test_total_combined_respects_max_candidates(self):
+        items = [_item(item_id=f"raw-SRC-001-{i:08x}", canonical_url=f"https://example.com/{i}",
+                       source_name="CNBC") for i in range(20)]
+        lookup = {i + 1: items[i] for i in range(len(items))}
+        stories = [dict(_selection(item_id=i + 1)) for i in range(20)]
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=stories, ranking=list(range(1, 21))), lookup
+        )
+        self.assertLessEqual(len(result), generate.MAX_CANDIDATES)
+
+    def test_list_response_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            generate._parse_claude_response(json.dumps([_selection(item_id=1)]), {1: _item()})
+
+    def test_item_id_normalized_to_integer(self):
+        lookup = {1: _item(source_name="CNBC")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=[sel], ranking=[1]), lookup
+        )
+        self.assertIsInstance(result[0]["item_id"], int)
 
 
 if __name__ == "__main__":
