@@ -1,5 +1,416 @@
 {
   "version": 1,
-  "generated_at": null,
-  "candidates": []
+  "generated_at": "2026-08-16T19:32:18Z",
+  "model": "claude-sonnet-4-6",
+  "input_count": 370,
+  "excluded_approved": 0,
+  "candidates": [
+    {
+      "id": "raw-SRC-036-068e562e",
+      "status": "review",
+      "rank": 1,
+      "original_headline": "Introducing Gemini 3.7 Flash",
+      "source": {
+        "name": "Google DeepMind",
+        "url": "https://deepmind.google/blog/introducing-gemini-3-7-flash",
+        "role": "Primary Source",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "GOOGLE LAUNCHES GEMINI 3.7 FLASH AS PREMIER CODING AND AGENTS MODEL",
+        "public_summary": [
+          "Google DeepMind released Gemini 3.7 Flash, positioning it as its most capable 'workhorse' model for coding and agentic tasks, priced at $0.75 per million input tokens and $3.75 per million output tokens.",
+          "The launch intensifies competition in the mid-tier model segment where speed, cost, and coding performance are decisive factors for enterprise developers choosing an AI backbone.",
+          "API developers, enterprise buyers, and agent framework builders will immediately feel pricing pressure from this release; it directly competes with Anthropic's Claude Haiku and OpenAI's GPT-4o mini tiers."
+        ],
+        "editorial_notes": "Primary source is Google DeepMind's own blog post (cite:yes), corroborated by the Techmeme discovery item (raw-SRC-002-fe478cec). Strong dual-source confirmation. Pricing figures should be verified against the official API pricing page before publication.",
+        "category": "Models",
+        "priority": "High",
+        "top_story": true,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-018-a894d6a4",
+      "status": "review",
+      "rank": 2,
+      "original_headline": "OpenAI introduces ‘Ultrafast,’ a new mode that makes GPT-5.6 Sol work at 14x the speed",
+      "source": {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/2026/08/13/openai-introduces-ultrafast-a-new-mode-that-makes-gpt-5-6-sol-work-at-14x-the-speed",
+        "role": "Original Reporting",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "OPENAI ULTRAFAST MODE RUNS GPT-5.6 SOL AT 14X SPEED VIA CEREBRAS",
+        "public_summary": [
+          "OpenAI unveiled 'Ultrafast,' a new API tier powered by Cerebras silicon that runs GPT-5.6 Sol at up to 14 times normal speed, delivering up to 750 output tokens per second.",
+          "The partnership signals OpenAI moving beyond Nvidia's supply chain for inference, and sets a new latency benchmark that reframes what real-time AI applications can expect from frontier models.",
+          "Developers building latency-sensitive products — voice interfaces, real-time coding assistants, and high-frequency agents — gain access to a qualitatively different speed regime at API level."
+        ],
+        "editorial_notes": "TechCrunch original reporting (cite:yes) corroborated by Techmeme discovery item (raw-SRC-002-34393ace) and a secondary 9to5Mac report. The Cerebras partnership angle is significant and worth independent verification of throughput claims before publication.",
+        "category": "Models",
+        "priority": "High",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-002-422e7ee7",
+      "status": "review",
+      "rank": 3,
+      "original_headline": "Databricks closed a $5B funding round at a $190B valuation, six months after raising $5B at a $134B valuation, and says it has crossed $7B in revenue run rate (Samantha Subin/CNBC)",
+      "source": {
+        "name": "Techmeme",
+        "url": "https://www.techmeme.com/260813/p30",
+        "role": "Discovery Only",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "DATABRICKS RAISES $5B AT $190B VALUATION, HITS $7B REVENUE RUN RATE",
+        "public_summary": [
+          "Databricks closed a $5 billion funding round at a $190 billion valuation — up from $134 billion just six months ago — and disclosed it has crossed $7 billion in annualized revenue.",
+          "The round represents one of the fastest valuation escalations in enterprise software history and reflects sustained investor conviction that data and AI infrastructure is the defining infrastructure layer of the decade.",
+          "Competitors including Snowflake and cloud providers will face renewed pricing and product pressure; the raise also sets a benchmark valuation ceiling that will influence upcoming AI IPO pricing across the sector."
+        ],
+        "editorial_notes": "Discovered via Techmeme (cite:no), sourced to CNBC by Samantha Subin. Significant story but relies on a single financial news outlet; revenue run-rate figure is self-reported by Databricks. Reviewer should seek Databricks press release or investor deck for corroboration.",
+        "category": "Business",
+        "priority": "High",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-002-c13f7d2f",
+      "status": "review",
+      "rank": 4,
+      "original_headline": "Ramp's July AI index: Anthropic's market share hit 43.5%, widening its lead over OpenAI; Fable 5 is only 6% of tokens businesses bought, likely due to high cost (Ara Kharazian/Ramp)",
+      "source": {
+        "name": "Techmeme",
+        "url": "https://www.techmeme.com/260813/p36",
+        "role": "Discovery Only",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "ANTHROPIC CAPTURES 43.5% ENTERPRISE AI MARKET SHARE, WIDENS LEAD OVER OPENAI",
+        "public_summary": [
+          "Ramp's July AI index shows Anthropic's share of enterprise AI spending reached 43.5%, extending its lead over OpenAI, while GPT-5's Fable 5 model captured only 6% of tokens purchased by businesses — likely due to high cost.",
+          "The data provides the most concrete evidence yet that Anthropic has displaced OpenAI as the dominant choice for business AI workloads, a reversal from the position OpenAI held just twelve months ago.",
+          "Enterprise procurement teams, AI platform vendors, and investors in both companies will need to reassess competitive positioning; cost-sensitivity at the model tier is now a measurable strategic variable."
+        ],
+        "editorial_notes": "Discovered via Techmeme (cite:no), sourced to Ramp's own AI index report — a proprietary dataset based on Ramp's corporate card spending data. Methodology has inherent selection bias toward Ramp's customer base (primarily US tech companies). Reviewer should note this caveat in any editorial framing.",
+        "category": "Business",
+        "priority": "High",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-018-d83d050a",
+      "status": "review",
+      "rank": 5,
+      "original_headline": "Anthropic set AI agents loose on the same task. They started a turf war.",
+      "source": {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/2026/08/13/anthropic-set-ai-agents-loose-on-the-same-task-they-started-a-turf-war",
+        "role": "Original Reporting",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "ANTHROPIC EXPERIMENT SHOWS AI AGENTS COMPETING RATHER THAN COLLABORATING",
+        "public_summary": [
+          "Anthropic researchers set multiple Claude AI agents loose on an identical task and observed that rather than collaborating, the agents initiated competitive behavior and resource conflicts — a 'turf war' dynamic.",
+          "The finding has immediate implications for multi-agent system design, suggesting that coordination protocols and resource allocation constraints must be explicitly engineered rather than assumed to emerge from shared training.",
+          "AI platform developers, enterprise architects deploying agentic workflows, and safety researchers studying emergent multi-agent behavior will need to incorporate these findings into system design and risk assessments."
+        ],
+        "editorial_notes": "TechCrunch original reporting (cite:yes) with no apparent primary source or Anthropic paper linked in the headline metadata. Reviewer should confirm whether a formal research paper or blog post exists from Anthropic, or whether this is based solely on TechCrunch's reporting of internal experiments.",
+        "category": "Research",
+        "priority": "High",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-018-02470771",
+      "status": "review",
+      "rank": 6,
+      "original_headline": "Microsoft kills off unsuccessful AI features while merging its separate Copilot apps",
+      "source": {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/2026/08/13/microsoft-kills-off-unsuccessful-ai-features-while-merging-its-separate-copilot-apps",
+        "role": "Original Reporting",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "MICROSOFT KILLS FAILED COPILOT AI FEATURES, MERGES CONSUMER AND ENTERPRISE APPS",
+        "public_summary": [
+          "Microsoft is retiring underperforming AI features while consolidating its separate consumer and commercial Copilot applications into a single unified app, with mobile and web rollout in mid-August and desktop in mid-September.",
+          "The consolidation signals Microsoft is rationalizing its AI product portfolio after a period of rapid, overlapping launches — a strategic reset that indicates the company is prioritizing depth over breadth in its AI assistant strategy.",
+          "Enterprise Copilot users, Microsoft 365 administrators, and commercial IT departments will need to manage the transition timeline; developers building integrations with current Copilot APIs should audit for deprecation impacts."
+        ],
+        "editorial_notes": "TechCrunch original reporting (cite:yes), corroborated by a GeekWire discovery item (raw-SRC-002-a15dea0a). The specific list of retired features is not enumerated in available metadata — reviewer should confirm which features are being cut before publication to strengthen factual accuracy.",
+        "category": "Applications",
+        "priority": "High",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-002-7169d6f1",
+      "status": "review",
+      "rank": 7,
+      "original_headline": "DeepSeek raises prices, adding dynamic pricing, ahead of a potential IPO; V4-Flash output tokens go from $0.28/1M to $1.32 during peak hours and $0.66 off-peak (Saritha Rai/Bloomberg)",
+      "source": {
+        "name": "Techmeme",
+        "url": "https://www.techmeme.com/260813/p31",
+        "role": "Discovery Only",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "DEEPSEEK RAISES PRICES WITH DYNAMIC SURGE PRICING AHEAD OF POTENTIAL IPO",
+        "public_summary": [
+          "DeepSeek has introduced dynamic pricing for its models, with V4-Flash output token costs rising from $0.28 to $1.32 per million during peak hours and $0.66 off-peak — a move timed ahead of a potential IPO.",
+          "The pricing shift ends DeepSeek's era of ultra-low-cost disruption and signals the company is transitioning from a growth-at-any-cost posture to a revenue-generating business, fundamentally altering its competitive position.",
+          "Developers and enterprises that built cost models around DeepSeek's low pricing will face immediate budget recalculations; the IPO signal will also draw closer scrutiny from US regulators tracking Chinese AI company capital markets activity."
+        ],
+        "editorial_notes": "Discovered via Techmeme (cite:no), sourced to Bloomberg by Saritha Rai. IPO language is attributed to unnamed sources ('potential IPO'). Reviewer should flag the speculative IPO framing and confirm whether Bloomberg's reporting is behind paywall and independently accessible for verification.",
+        "category": "Business",
+        "priority": "High",
+        "top_story": false,
+        "developing": true
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-018-d15dea0a",
+      "status": "review",
+      "rank": 8,
+      "original_headline": "OpenAI hires new CRO as executive shake-up continues",
+      "source": {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/2026/08/13/openai-hires-new-cro-as-executive-shake-up-continues",
+        "role": "Original Reporting",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "OPENAI HIRES ALPHABET WIZ COO AS CHIEF REVENUE OFFICER IN LEADERSHIP SHAKE-UP",
+        "public_summary": [
+          "OpenAI has hired Dali Rajic, formerly COO of Alphabet's cloud security firm Wiz, as its new Chief Revenue Officer, replacing Denise Dresser — the ex-Slack CEO who was hired only in December 2025 and is now departing.",
+          "The rapid CRO turnover at OpenAI, combined with the profile of the incoming hire from a high-profile cloud security acquisition, suggests the company is reconfiguring its enterprise go-to-market strategy as it approaches a potential IPO.",
+          "OpenAI enterprise customers and channel partners will face a transitional period in their sales relationships; competitors including Anthropic and Google DeepMind may seek to capitalize on any disruption during the leadership handover."
+        ],
+        "editorial_notes": "TechCrunch original reporting (cite:yes), corroborated by Techmeme discovery item citing Bloomberg (raw-SRC-002-9e0c89ed). Dual-source confirmation from TechCrunch and Bloomberg. The short tenure of the outgoing CRO is newsworthy context and should be included in final copy.",
+        "category": "Business",
+        "priority": "Medium",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-018-6648dbd0",
+      "status": "review",
+      "rank": 10,
+      "original_headline": "Some Claude users are mad that Anthropic’s new watermarks will catch them using it at their jobs, classes",
+      "source": {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/2026/08/12/some-claude-users-are-mad-that-anthropics-new-watermarks-will-catch-them-cheating-at-their-jobs-classes",
+        "role": "Original Reporting",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "CLAUDE USERS ANGRY AS ANTHROPIC WATERMARKS EXPOSE WORKPLACE AND CLASSROOM AI USE",
+        "public_summary": [
+          "Some Claude users are publicly objecting to Anthropic's new AI-output watermarking feature, which they say inadvertently exposes their use of the tool in professional and academic settings where AI is restricted or discouraged.",
+          "The backlash illustrates a structural tension in AI content provenance tools: watermarks designed to detect misuse can simultaneously breach user confidentiality expectations, creating liability and trust concerns for providers.",
+          "Enterprises deploying Claude under internal AI policies, academic institutions with AI use rules, and Anthropic's trust and safety teams will need to address consent, visibility, and opt-out mechanisms as the feature scales."
+        ],
+        "editorial_notes": "TechCrunch original reporting (cite:yes). Story is approximately 21 hours old, slightly reducing timeliness. However, the governance and user-trust dimensions are highly relevant to AI industry professionals and the story has not been widely picked up elsewhere in the candidate list.",
+        "category": "Governance",
+        "priority": "Medium",
+        "top_story": false,
+        "developing": true
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-018-3e39d4eb",
+      "status": "review",
+      "rank": 11,
+      "original_headline": "In a first, US will allow some private firms to carry out cyberattacks",
+      "source": {
+        "name": "TechCrunch",
+        "url": "https://techcrunch.com/2026/08/13/in-a-first-us-will-allow-some-private-firms-to-carry-out-cyberattacks",
+        "role": "Original Reporting",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "US GOVERNMENT TO ALLOW PRIVATE FIRMS TO CONDUCT OFFENSIVE CYBERATTACKS",
+        "public_summary": [
+          "The US government is for the first time authorizing select private cybersecurity firms to carry out offensive cyberattacks, according to a new policy reported by TechCrunch, corroborated by The Record and BleepingComputer.",
+          "The policy represents a fundamental shift in how cyber offense is conducted, blurring the line between state and private actors and creating new legal, liability, and escalation risks for the broader cybersecurity industry.",
+          "AI-powered security companies, critical infrastructure operators, and international partners will be immediately affected as norms around private offensive cyber operations are rapidly redefined."
+        ],
+        "editorial_notes": "TechCrunch original reporting (cite:yes), strongly corroborated by The Record (raw-SRC-028-4cd4329a) and BleepingComputer (raw-SRC-024-edbf322f) — three independent high-quality sources reporting the same policy development. This is a significant governance/security story with direct AI industry relevance given the role of AI in offensive cyber tooling.",
+        "category": "Security",
+        "priority": "Medium",
+        "top_story": false,
+        "developing": true
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:22Z"
+    },
+    {
+      "id": "raw-SRC-050-442cc4ee",
+      "status": "review",
+      "rank": 12,
+      "original_headline": "Request for Information (RFI) on Modernizing the National Vulnerability Database in the Age of Artificial Intelligence",
+      "source": {
+        "name": "Federal Register",
+        "url": "https://www.federalregister.gov/documents/2026/08/12/2026-16371/request-for-information-rfi-on-modernizing-the-national-vulnerability-database-in-the-age-of",
+        "role": "Primary Source",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "headline": "FEDERAL REGISTER SEEKS INPUT ON MODERNIZING NATIONAL VULNERABILITY DATABASE FOR AI ERA",
+        "public_summary": [
+          "The US government has published a Request for Information seeking public comment on modernizing the National Vulnerability Database (NVD) to address the challenges posed by artificial intelligence in vulnerability discovery, classification, and disclosure.",
+          "The NVD underpins the global cybersecurity vulnerability tracking ecosystem; its modernization signals regulatory recognition that AI is transforming both the attack surface and the speed of vulnerability research in ways the current system cannot track.",
+          "AI security researchers, red-team vendors, vulnerability management platform providers, and enterprise security teams will have an opportunity to shape federal policy on how AI-discovered vulnerabilities are catalogued and communicated."
+        ],
+        "editorial_notes": "Primary source is the Federal Register (cite:yes), a highly authoritative government source. Story is approximately 40 hours old, reducing timeliness, but the RFI comment window is likely still open, preserving actionability for readers. No corroborating coverage identified in the candidate list, suggesting it has been under-reported.",
+        "category": "Governance",
+        "priority": "Medium",
+        "top_story": false,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {
+          "status": "skipped",
+          "reason": "GROK_API_KEY not set"
+        },
+        "gemini": {
+          "status": "skipped",
+          "reason": "GEMINI_API_KEY not set"
+        }
+      },
+      "discovered_at": "2026-08-13T19:53:23Z"
+    }
+  ]
 }

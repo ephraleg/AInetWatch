@@ -2,7 +2,7 @@
 """AINWA-005/006 Candidate Generation v1
 
 Pipeline position:
-  filtered-discovery.json → Claude selection (max 12) → Grok/Gemini advisory → candidate-queue.json
+  filtered-discovery.json → Claude selection (max 17) → Grok/Gemini advisory → candidate-queue.json
 
 Does NOT write approved-queue.json or trigger any approval action.
 
@@ -25,7 +25,7 @@ import os
 import sys
 import urllib.request
 import urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -35,8 +35,21 @@ FILTERED_FILE = DATA_DIR / "filtered-discovery.json"
 APPROVED_FILE = DATA_DIR / "approved-queue.json"
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
 
-MAX_CANDIDATES = 12
+MAX_CANDIDATES = 17
 CATEGORIES = ("Models", "Research", "Security", "Governance", "Business", "Infrastructure", "Applications")
+
+# Sources that may contribute at most one story to the shortlist.
+# Reuters and The Information are configured-but-inactive (no feed_url yet);
+# they are included here so the cap applies automatically once they become active.
+ANCHOR_SOURCES: frozenset[str] = frozenset({
+    "Reuters",
+    "The Information",
+    "TechCrunch",
+    "BleepingComputer",
+    "arXiv",
+})
+
+CARRYOVER_DAYS = 3  # unresolved candidates from prior runs survive this many days
 
 
 def now_iso() -> str:
@@ -154,6 +167,60 @@ Candidates:
 
 
 # ---------------------------------------------------------------------------
+# Anchor cap enforcement (hard, post-Claude)
+# ---------------------------------------------------------------------------
+
+def _enforce_anchor_cap(selections: list[dict], item_lookup: dict[str, dict]) -> list[dict]:
+    """Deterministically drop extra stories from the same anchor source.
+
+    Claude is asked to respect the one-per-anchor rule in its prompt, but this
+    function hard-enforces it regardless. Extra anchor stories are dropped
+    without replacement — no weak filler is added.
+    """
+    anchor_seen: set[str] = set()
+    result: list[dict] = []
+    for sel in selections:
+        item_id = str(sel.get("item_id") or "")
+        src_name = item_lookup.get(item_id, {}).get("source_name", "")
+        if src_name in ANCHOR_SOURCES:
+            if src_name in anchor_seen:
+                print(
+                    f"[AINWA] Anchor cap: dropping extra {src_name!r} candidate {item_id!r}.",
+                    file=sys.stderr,
+                )
+                continue
+            anchor_seen.add(src_name)
+        result.append(sel)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Carryover candidate extraction
+# ---------------------------------------------------------------------------
+
+def _carryover_candidates(existing: list[dict], cutoff_ts: datetime) -> list[dict]:
+    """Return prior unresolved candidates within the rolling 72-hour carryover window.
+
+    A candidate qualifies if:
+      - status is 'review' or 'snoozed' (not approved / rejected / archived)
+      - discovered_at timestamp >= cutoff_ts (true rolling window, not calendar-date)
+    """
+    terminal = {"approved", "rejected", "archived"}
+    kept: list[dict] = []
+    for c in existing:
+        if c.get("status") in terminal:
+            continue
+        raw_ts = c.get("discovered_at") or ""
+        try:
+            discovered = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+        if discovered >= cutoff_ts:
+            kept.append(c)
+    return kept
+
+
+# ---------------------------------------------------------------------------
 # Prompt builder
 # ---------------------------------------------------------------------------
 
@@ -165,15 +232,16 @@ def build_selection_prompt(items: list[dict], excluded_urls: set[str]) -> str:
     for idx, item in enumerate(eligible, 1):
         age = item.get("age_hours")
         age_str = f"{age:.1f}h" if isinstance(age, (int, float)) else "?h"
+        anchor_tag = " [ANCHOR]" if item.get("source_name", "") in ANCHOR_SOURCES else ""
         lines.append(
             f"{idx}. [{item.get('item_id', '')}] "
             f"[{item.get('source_name', '')} / {item.get('source_role', '')} / "
-            f"cite:{item.get('source_citation_allowed', '?')} / {age_str}] "
+            f"cite:{item.get('source_citation_allowed', '?')} / {age_str}]{anchor_tag} "
             f"{item.get('item_title', '').strip()}"
         )
 
-    return f"""You are ANWU, the AInetWatch editorial AI. Select and rank the {MAX_CANDIDATES} most \
-important AI-industry stories from the list below for today's wire.
+    return f"""You are ANWU, the AInetWatch editorial AI. Select and rank the best AI-industry \
+stories (up to {MAX_CANDIDATES}) from the list below for today's wire.
 
 Selection criteria (in order of importance):
 1. Importance and novelty to the AI industry
@@ -182,8 +250,15 @@ Selection criteria (in order of importance):
 4. Reader relevance for an AI-industry professional audience
 5. Non-duplication (prefer stories covering distinct events)
 
+Anchor source rules (items marked [ANCHOR]):
+- Reuters, The Information, TechCrunch, BleepingComputer, arXiv (cs.AI / cs.LG) are anchor sources.
+- Select at most ONE story per anchor source. An unfilled anchor slot is correct — do not force \
+a weak story to meet a quota.
+- Techmeme is Discovery Only and is never an anchor.
+- Do not fill weak stories merely to reach {MAX_CANDIDATES}. Quality over count.
+
 For each selected story produce exactly these fields:
-- headline: AInetWatch-style in ALL CAPS, ≤12 words, punchy and factual
+- brief_headline: AInetWatch-style in ALL CAPS, ≤12 words, punchy and factual
 - public_summary: exactly 3 reader-facing bullets — (1) what happened, (2) why it matters, \
 (3) what changes or who is affected. No internal language. Published verbatim if approved.
 - editorial_notes: 1-3 sentences for the human reviewer only — source quality, verification \
@@ -197,7 +272,7 @@ Return ONLY a JSON array of up to {MAX_CANDIDATES} objects, no other text:
 [
   {{
     "item_id": "raw-SRC-XXX-XXXXXXXX",
-    "headline": "ALL CAPS HEADLINE HERE",
+    "brief_headline": "ALL CAPS HEADLINE HERE",
     "public_summary": ["What happened.", "Why it matters.", "What changes or who is affected."],
     "editorial_notes": "Source quality and verification notes for the reviewer.",
     "category": "Models",
@@ -207,7 +282,7 @@ Return ONLY a JSON array of up to {MAX_CANDIDATES} objects, no other text:
   }}
 ]
 
-Candidates ({len(eligible)} items after excluding already-approved stories):
+Candidates ({len(eligible)} items after excluding already-approved and carryover stories):
 {chr(10).join(lines)}"""
 
 
@@ -233,6 +308,7 @@ def build_candidates(
 
         raw_url = item.get("canonical_url") or item.get("item_url") or ""
         source_url = raw_url if is_http_url(raw_url) else ""
+        source_role = item.get("source_role", "")
 
         advisory = {
             "grok": grok_results.get(item_id, {
@@ -245,20 +321,36 @@ def build_candidates(
             }),
         }
 
+        # brief_headline is the AI-prepared editorial headline.
+        # headline is kept as an alias for backward compatibility.
+        brief_headline = str(sel.get("brief_headline") or sel.get("headline") or "")
+
+        # source_resolution: "resolved" when the ingested source is itself the
+        # original/primary source; "unresolved" for Discovery Only leads whose
+        # underlying primary source has not yet been fetched. The original_headline
+        # below is verbatim from the ingested record in both cases — for unresolved
+        # leads it is the discovery-source headline, not the underlying article's.
+        if source_role in ("Original Reporting", "Primary Source"):
+            source_resolution = "resolved"
+        else:
+            source_resolution = "unresolved"
+
         candidates.append({
             "id": item_id,
             "status": "review",
             "rank": rank,
             "original_headline": item.get("item_title", ""),
+            "source_resolution": source_resolution,
             "source": {
                 "name": item.get("source_name", ""),
                 "url": source_url,
-                "role": item.get("source_role", ""),
+                "role": source_role,
                 "reliability": item.get("source_reliability", ""),
                 "paywall": False,
             },
             "proposal": {
-                "headline": str(sel.get("headline") or ""),
+                "brief_headline": brief_headline,
+                "headline": brief_headline,  # backward-compat alias
                 "public_summary": sel.get("public_summary") if isinstance(sel.get("public_summary"), list) else [],
                 "editorial_notes": str(sel.get("editorial_notes") or ""),
                 "category": str(sel.get("category") or ""),
@@ -303,7 +395,7 @@ def main(argv=None):
     filtered = read_json(filtered_file, {"items": []})
     items = filtered.get("items", []) if isinstance(filtered, dict) else []
 
-    # Load approved URLs to exclude
+    # Load approved/archived URLs to exclude
     approved = read_json(approved_file, {"stories": []})
     approved_urls: set[str] = set()
     for story in (approved.get("stories", []) if isinstance(approved, dict) else []):
@@ -311,9 +403,32 @@ def main(argv=None):
         if url:
             approved_urls.add(url)
 
-    print(f"[AINWA] {len(items)} filtered items, {len(approved_urls)} approved URLs excluded.", file=sys.stderr)
+    # Load existing candidates for carryover merge.
+    # Prior unresolved candidates within CARRYOVER_DAYS are preserved and
+    # their URLs are excluded from new selection to avoid re-picking.
+    cutoff_ts = datetime.now(timezone.utc) - timedelta(hours=72)
+    existing_candidates_payload = read_json(candidates_file, {"candidates": []})
+    existing_candidates = (
+        existing_candidates_payload.get("candidates", [])
+        if isinstance(existing_candidates_payload, dict)
+        else []
+    )
+    carryover = _carryover_candidates(existing_candidates, cutoff_ts)
+    carryover_urls: set[str] = set()
+    for c in carryover:
+        url = (c.get("source") or {}).get("url", "")
+        if url:
+            carryover_urls.add(url)
 
-    prompt = build_selection_prompt(items, approved_urls)
+    excluded_urls = approved_urls | carryover_urls
+    print(
+        f"[AINWA] {len(items)} filtered items, "
+        f"{len(approved_urls)} approved/archived URLs excluded, "
+        f"{len(carryover)} carryover candidates preserved.",
+        file=sys.stderr,
+    )
+
+    prompt = build_selection_prompt(items, excluded_urls)
     item_lookup = {i["item_id"]: i for i in items if "item_id" in i}
 
     if args.dry_run:
@@ -338,6 +453,10 @@ def main(argv=None):
         return 1
 
     print(f"[AINWA] Claude selected {len(selections)} candidates.", file=sys.stderr)
+
+    # Hard-enforce anchor cap regardless of whether Claude respected the prompt rule.
+    selections = _enforce_anchor_cap(selections, item_lookup)
+    print(f"[AINWA] After anchor cap enforcement: {len(selections)} candidates.", file=sys.stderr)
 
     # --- Build shortlist JSON for advisors ---
     shortlist_json = json.dumps([
@@ -391,7 +510,11 @@ def main(argv=None):
         print(f"[AINWA] Gemini advisory skipped: {reason}.", file=sys.stderr)
 
     # --- Build and write candidates ---
-    candidates = build_candidates(selections, item_lookup, grok_results, gemini_results, grok_ran, gemini_ran)
+    new_candidates = build_candidates(selections, item_lookup, grok_results, gemini_results, grok_ran, gemini_ran)
+
+    # Merge: today's new candidates first, then carryover (prior unresolved within window).
+    # Carryover candidates retain their existing status / human_decision fields.
+    merged_candidates = new_candidates + carryover
 
     output = {
         "version": 1,
@@ -399,10 +522,15 @@ def main(argv=None):
         "model": args.model,
         "input_count": len(items),
         "excluded_approved": len(approved_urls),
-        "candidates": candidates,
+        "carryover_count": len(carryover),
+        "candidates": merged_candidates,
     }
     write_json(candidates_file, output)
-    print(f"[AINWA] Wrote {len(candidates)} candidates to {candidates_file}.", file=sys.stderr)
+    print(
+        f"[AINWA] Wrote {len(new_candidates)} new + {len(carryover)} carryover "
+        f"= {len(merged_candidates)} total candidates to {candidates_file}.",
+        file=sys.stderr,
+    )
     return 0
 
 

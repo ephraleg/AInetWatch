@@ -45,6 +45,7 @@ def _story(
     locked: bool = True,
     status: str | None = None,
     approved_at: str | None = None,
+    archived_at: str | None = None,
     headline: str = "Test Headline",
     url: str = "https://example.com/story",
     source_name: str = "Example News",
@@ -60,6 +61,7 @@ def _story(
         "source": {"name": source_name, "url": url, "role": "Original Reporting",
                    "reliability": "High", "paywall": False},
         "approved": {
+            "brief_headline": headline,
             "headline": headline,
             "public_summary": public_summary or ["Point one.", "Point two.", "Point three."],
             "category": "Models",
@@ -77,6 +79,8 @@ def _story(
     }
     if status is not None:
         record["status"] = status
+    if archived_at is not None:
+        record["archived_at"] = archived_at
     if editorial_notes is not None:
         # editorial_notes must never be written into approved records in production,
         # but we add it here at the story level to verify build.py never emits it.
@@ -455,6 +459,77 @@ class TestEmptyQueue(unittest.TestCase):
             archive_html = (out_dir / "archive.html").read_text(encoding="utf-8")
             self.assertIn("<main", index_html)
             self.assertIn("<main", archive_html)
+
+
+class TestArchivedRecords(unittest.TestCase):
+    """status='archived' records must appear in archive.html but not index.html."""
+
+    def _run_build(self, stories: list[dict]) -> tuple[str, str]:
+        with tempfile.TemporaryDirectory() as d:
+            data_dir = Path(d) / "data"
+            data_dir.mkdir()
+            out_dir = Path(d) / "out"
+            out_dir.mkdir()
+            _write_queue(data_dir, stories)
+            tpl = _write_template(Path(d))
+            build.build(data_dir, out_dir, tpl)
+            index = (out_dir / "index.html").read_text(encoding="utf-8")
+            archive = (out_dir / "archive.html").read_text(encoding="utf-8")
+        return index, archive
+
+    def test_archived_record_absent_from_homepage(self):
+        stories = [
+            _story("approved-1", headline="Approved Story"),
+            _story("archived-1", headline="Archived Story", status="archived",
+                   archived_at=_ts(1)),
+        ]
+        index, archive = self._run_build(stories)
+        self.assertIn("Approved Story", index)
+        self.assertNotIn("Archived Story", index)
+
+    def test_archived_record_present_in_archive(self):
+        stories = [
+            _story("approved-2", headline="Approved Story"),
+            _story("archived-2", headline="Archived Story", status="archived",
+                   archived_at=_ts(1)),
+        ]
+        index, archive = self._run_build(stories)
+        self.assertIn("Archived Story", archive)
+
+    def test_archived_record_uses_approved_block_for_content(self):
+        stories = [
+            _story("archived-3", headline="Brief Headline From Approved Block",
+                   status="archived", archived_at=_ts(1)),
+        ]
+        index, archive = self._run_build(stories)
+        self.assertIn("Brief Headline From Approved Block", archive)
+
+    def test_combined_archive_contains_overflow_and_archived(self):
+        # 51 approved + 1 archived → archive must contain both the overflow story
+        # and the archived story
+        approved_stories = [
+            _story(f"ap{i:02d}", headline=f"Approved {i:02d}", approved_at=_ts(i))
+            for i in range(51)
+        ]
+        archived_story = _story("arch-x", headline="Direct Archive Story",
+                                status="archived", archived_at=_ts(99))
+        stories = approved_stories + [archived_story]
+        index, archive = self._run_build(stories)
+        # The oldest approved story (ap00) is overflow
+        self.assertIn("Approved 00", archive)
+        # The archived story also appears
+        self.assertIn("Direct Archive Story", archive)
+        # Neither overflows onto the homepage
+        self.assertNotIn("Approved 00", index)
+        self.assertNotIn("Direct Archive Story", index)
+
+    def test_brief_headline_rendered_over_headline_fallback(self):
+        # If brief_headline differs from headline, brief_headline must win.
+        story = _story("bh-test", headline="Old Headline Field")
+        story["approved"]["brief_headline"] = "NEW BRIEF HEADLINE"
+        stories = [story]
+        index, archive = self._run_build(stories)
+        self.assertIn("NEW BRIEF HEADLINE", index)
 
 
 if __name__ == "__main__":

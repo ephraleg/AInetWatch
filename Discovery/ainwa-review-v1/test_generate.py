@@ -427,5 +427,197 @@ class TestIsHttpUrl(unittest.TestCase):
         self.assertFalse(generate.is_http_url("https://"))
 
 
+# ---------------------------------------------------------------------------
+# New behavior: brief_headline, anchor cap, carryover merge
+# ---------------------------------------------------------------------------
+
+class TestBriefHeadline(unittest.TestCase):
+
+    def test_brief_headline_set_from_selection(self):
+        item = _item()
+        sel = dict(_selection())
+        sel["brief_headline"] = "BRIEF HEADLINE FROM CLAUDE"
+        sel.pop("headline", None)
+        candidates = generate.build_candidates(
+            [sel], _make_item_lookup(item), {}, {}, False, False
+        )
+        self.assertEqual(candidates[0]["proposal"]["brief_headline"], "BRIEF HEADLINE FROM CLAUDE")
+
+    def test_headline_alias_matches_brief_headline(self):
+        item = _item()
+        sel = dict(_selection())
+        sel["brief_headline"] = "BRIEF HEADLINE"
+        sel.pop("headline", None)
+        candidates = generate.build_candidates(
+            [sel], _make_item_lookup(item), {}, {}, False, False
+        )
+        self.assertEqual(
+            candidates[0]["proposal"]["headline"],
+            candidates[0]["proposal"]["brief_headline"],
+        )
+
+    def test_brief_headline_falls_back_to_headline_key(self):
+        item = _item()
+        sel = dict(_selection(headline="LEGACY HEADLINE"))
+        # No brief_headline key — should fall back to headline
+        candidates = generate.build_candidates(
+            [sel], _make_item_lookup(item), {}, {}, False, False
+        )
+        self.assertEqual(candidates[0]["proposal"]["brief_headline"], "LEGACY HEADLINE")
+
+    def test_source_resolution_resolved_for_original_reporting(self):
+        item = _item(source_role="Original Reporting")
+        candidates = generate.build_candidates(
+            [_selection()], _make_item_lookup(item), {}, {}, False, False
+        )
+        self.assertEqual(candidates[0]["source_resolution"], "resolved")
+
+    def test_source_resolution_unresolved_for_discovery_only(self):
+        item = _item(source_role="Discovery Only")
+        candidates = generate.build_candidates(
+            [_selection()], _make_item_lookup(item), {}, {}, False, False
+        )
+        self.assertEqual(candidates[0]["source_resolution"], "unresolved")
+
+
+class TestAnchorCap(unittest.TestCase):
+
+    def _anchor_item(self, src_name, item_id):
+        return {
+            "item_id": item_id,
+            "source_name": src_name,
+            "source_role": "Original Reporting",
+            "source_citation_allowed": "yes",
+            "source_reliability": "high",
+            "age_hours": 1.0,
+            "item_title": f"{src_name} story",
+            "canonical_url": f"https://example.com/{item_id}",
+            "fetched_at": "2026-08-13T10:00:00Z",
+        }
+
+    def test_anchor_cap_allows_first_drops_second(self):
+        tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-aaaa0001")
+        tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-aaaa0002")
+        lookup = {tc1["item_id"]: tc1, tc2["item_id"]: tc2}
+        selections = [
+            {"item_id": tc1["item_id"]},
+            {"item_id": tc2["item_id"]},
+        ]
+        result = generate._enforce_anchor_cap(selections, lookup)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["item_id"], tc1["item_id"])
+
+    def test_anchor_cap_different_anchors_both_allowed(self):
+        tc = self._anchor_item("TechCrunch", "raw-SRC-018-tc000001")
+        bc = self._anchor_item("BleepingComputer", "raw-SRC-024-bc000001")
+        lookup = {tc["item_id"]: tc, bc["item_id"]: bc}
+        selections = [{"item_id": tc["item_id"]}, {"item_id": bc["item_id"]}]
+        result = generate._enforce_anchor_cap(selections, lookup)
+        self.assertEqual(len(result), 2)
+
+    def test_anchor_cap_non_anchor_not_affected(self):
+        non_anchor = self._anchor_item("CNBC", "raw-SRC-017-cn000001")
+        non_anchor2 = self._anchor_item("CNBC", "raw-SRC-017-cn000002")
+        lookup = {non_anchor["item_id"]: non_anchor, non_anchor2["item_id"]: non_anchor2}
+        selections = [{"item_id": non_anchor["item_id"]}, {"item_id": non_anchor2["item_id"]}]
+        result = generate._enforce_anchor_cap(selections, lookup)
+        self.assertEqual(len(result), 2)
+
+    def test_anchor_cap_no_filler_added(self):
+        tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-fill0001")
+        tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-fill0002")
+        lookup = {tc1["item_id"]: tc1, tc2["item_id"]: tc2}
+        selections = [{"item_id": tc1["item_id"]}, {"item_id": tc2["item_id"]}]
+        result = generate._enforce_anchor_cap(selections, lookup)
+        # Only 1 returned — no extra item was added to fill the gap
+        self.assertEqual(len(result), 1)
+
+
+class TestCarryoverMerge(unittest.TestCase):
+
+    def _candidate(self, status, hours_old, item_id="raw-SRC-001-carrytest"):
+        from datetime import datetime, timezone, timedelta
+        disc = (datetime.now(timezone.utc) - timedelta(hours=hours_old)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {
+            "id": item_id,
+            "status": status,
+            "rank": 1,
+            "original_headline": "Test",
+            "source_resolution": "resolved",
+            "source": {"name": "Test", "url": "https://example.com/carrytest", "role": "Original Reporting", "reliability": "high", "paywall": False},
+            "proposal": {"brief_headline": "TEST", "headline": "TEST", "public_summary": [], "editorial_notes": "", "category": "Models", "priority": "High", "top_story": False, "developing": False},
+            "advisory": {},
+            "discovered_at": disc,
+        }
+
+    def test_unresolved_within_3_days_kept(self):
+        from datetime import datetime, timezone, timedelta
+        cutoff_ts = datetime.now(timezone.utc) - timedelta(hours=72)
+        c = self._candidate("review", hours_old=24)
+        result = generate._carryover_candidates([c], cutoff_ts)
+        self.assertEqual(len(result), 1)
+
+    def test_exactly_72h_old_kept(self):
+        # Candidate discovered exactly at the cutoff boundary must be kept (>=).
+        # Use a fixed reference with second precision to avoid sub-second timing races.
+        from datetime import datetime, timezone
+        ref = datetime(2026, 8, 13, 12, 0, 0, tzinfo=timezone.utc)
+        c = self._candidate("review", hours_old=0)
+        c["discovered_at"] = ref.strftime("%Y-%m-%dT%H:%M:%SZ")
+        result = generate._carryover_candidates([c], ref)
+        self.assertEqual(len(result), 1)
+
+    def test_older_than_72h_dropped(self):
+        from datetime import datetime, timezone, timedelta
+        cutoff_ts = datetime.now(timezone.utc) - timedelta(hours=72)
+        c = self._candidate("review", hours_old=96)
+        result = generate._carryover_candidates([c], cutoff_ts)
+        self.assertEqual(len(result), 0)
+
+    def test_approved_candidate_not_carried_over(self):
+        from datetime import datetime, timezone, timedelta
+        cutoff_ts = datetime.now(timezone.utc) - timedelta(hours=72)
+        c = self._candidate("approved", hours_old=24)
+        result = generate._carryover_candidates([c], cutoff_ts)
+        self.assertEqual(len(result), 0)
+
+    def test_rejected_candidate_not_carried_over(self):
+        from datetime import datetime, timezone, timedelta
+        cutoff_ts = datetime.now(timezone.utc) - timedelta(hours=72)
+        c = self._candidate("rejected", hours_old=24)
+        result = generate._carryover_candidates([c], cutoff_ts)
+        self.assertEqual(len(result), 0)
+
+    def test_snoozed_within_72h_kept(self):
+        from datetime import datetime, timezone, timedelta
+        cutoff_ts = datetime.now(timezone.utc) - timedelta(hours=72)
+        c = self._candidate("snoozed", hours_old=48)
+        result = generate._carryover_candidates([c], cutoff_ts)
+        self.assertEqual(len(result), 1)
+
+    def test_carryover_appended_after_new_candidates_in_output(self):
+        """New candidates appear before carryover in the written file."""
+        new_item = _item(item_id="raw-SRC-001-new00001", canonical_url="https://example.com/new")
+        carryover_item = dict(self._candidate("review", hours_old=24, item_id="raw-SRC-001-carry01"))
+        CLAUDE_RESPONSE = json.dumps([_selection(item_id=new_item["item_id"])])
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            d = Path(tmpdir)
+            (d / "filtered-discovery.json").write_text(json.dumps({"items": [new_item]}))
+            (d / "approved-queue.json").write_text(json.dumps({"stories": []}))
+            (d / "candidate-queue.json").write_text(json.dumps({"candidates": [carryover_item]}))
+
+            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False), \
+                 patch("generate.call_claude", return_value=CLAUDE_RESPONSE):
+                rc = generate.main(["--data-dir", tmpdir, "--skip-advisory"])
+
+            result = json.loads((d / "candidate-queue.json").read_text())
+
+        self.assertEqual(rc, 0)
+        ids = [c["id"] for c in result["candidates"]]
+        self.assertEqual(ids[0], new_item["item_id"])
+        self.assertEqual(ids[-1], carryover_item["id"])
+
+
 if __name__ == "__main__":
     unittest.main()

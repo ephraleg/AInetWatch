@@ -75,8 +75,16 @@ def write_file(path: Path, text: str) -> None:
 # Story loading and validation
 # ---------------------------------------------------------------------------
 
-def load_stories(data_dir: Path) -> list[dict]:
-    """Load approved stories. Hard-exits if any story is not locked."""
+def load_stories(data_dir: Path) -> tuple[list[dict], list[dict]]:
+    """Load approved and archived stories from approved-queue.json.
+
+    Returns (approved_eligible, archive_only):
+      approved_eligible — status "approved" (or absent); feed the homepage pool.
+      archive_only      — status "archived"; go directly to archive.html.
+
+    Hard-exits if any story's approved.locked is not True.
+    Public content is always read from the approved block for both types.
+    """
     data = read_json(data_dir / "approved-queue.json")
     stories = data.get("stories", []) if isinstance(data, dict) else []
 
@@ -87,15 +95,23 @@ def load_stories(data_dir: Path) -> list[dict]:
             print(f"[AINWA] BUILD ERROR: story {sid!r} is not locked. Refusing to build.", file=sys.stderr)
             sys.exit(1)
 
-    # Soft filter: exclude records with a non-approved top-level status.
-    # Approved records don't normally carry a top-level status field; this
-    # defends against a manually-edited approved-queue.
-    renderable = [s for s in stories if s.get("status", "approved") == "approved"]
-    excluded = len(stories) - len(renderable)
-    if excluded:
-        print(f"[AINWA] WARNING: {excluded} non-approved record(s) excluded.", file=sys.stderr)
+    approved_eligible: list[dict] = []
+    archive_only: list[dict] = []
+    unknown: list[str] = []
 
-    return renderable
+    for s in stories:
+        status = s.get("status", "approved")
+        if status == "approved":
+            approved_eligible.append(s)
+        elif status == "archived":
+            archive_only.append(s)
+        else:
+            unknown.append(str(s.get("id", "<unknown>")))
+
+    if unknown:
+        print(f"[AINWA] WARNING: {len(unknown)} record(s) with unrecognised status excluded: {unknown[:5]}", file=sys.stderr)
+
+    return approved_eligible, archive_only
 
 
 def sort_by_approved_at(stories: list[dict]) -> list[dict]:
@@ -157,7 +173,8 @@ def _render_tooltip(story: dict, tip_prefix: str) -> str:
 def _render_link(story: dict) -> str:
     approved = story.get("approved", {})
     source = story.get("source", {})
-    headline = esc(approved.get("headline") or "")
+    # Prefer brief_headline; fall back to headline for backward compat.
+    headline = esc(approved.get("brief_headline") or approved.get("headline") or "")
     url = source.get("url") or ""
     if is_http_url(url):
         return (
@@ -279,12 +296,16 @@ def render_archive_content(stories: list[dict]) -> str:
 # ---------------------------------------------------------------------------
 
 def build(data_dir: Path, output_dir: Path, template_file: Path, dry_run: bool = False) -> None:
-    stories = load_stories(data_dir)
+    approved_eligible, archive_only = load_stories(data_dir)
     head_chrome, tail_chrome = load_chrome(template_file)
 
-    sorted_stories = sort_by_approved_at(stories)
-    homepage = sorted_stories[:HOMEPAGE_CAP]
-    archive = sorted_stories[HOMEPAGE_CAP:]
+    # Homepage pool: approved records only, newest first.
+    sorted_eligible = sort_by_approved_at(approved_eligible)
+    homepage = sorted_eligible[:HOMEPAGE_CAP]
+    overflow = sorted_eligible[HOMEPAGE_CAP:]
+
+    # Archive: homepage overflow + straight-to-archive records, sorted by approved_at desc.
+    archive = sort_by_approved_at(overflow + archive_only)
 
     homepage_html = head_chrome + render_main_content(homepage) + tail_chrome
     archive_html = head_chrome + render_archive_content(archive) + tail_chrome
@@ -292,7 +313,7 @@ def build(data_dir: Path, output_dir: Path, template_file: Path, dry_run: bool =
     if dry_run:
         print(
             f"[AINWA] DRY RUN: would write {len(homepage)} stories to index.html, "
-            f"{len(archive)} to archive.html",
+            f"{len(archive)} to archive.html ({len(overflow)} overflow + {len(archive_only)} archived)",
             file=sys.stderr,
         )
         return
@@ -301,7 +322,7 @@ def build(data_dir: Path, output_dir: Path, template_file: Path, dry_run: bool =
     write_file(output_dir / "archive.html", archive_html)
     print(
         f"[AINWA] Built index.html ({len(homepage)} stories) "
-        f"and archive.html ({len(archive)} stories).",
+        f"and archive.html ({len(archive)} stories: {len(overflow)} overflow + {len(archive_only)} archived).",
         file=sys.stderr,
     )
 

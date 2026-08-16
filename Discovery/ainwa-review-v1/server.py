@@ -21,7 +21,7 @@ import secrets
 import sys
 import threading
 import webbrowser
-from datetime import datetime, timezone
+from datetime import datetime, date, timedelta, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
@@ -242,7 +242,8 @@ def normalized_proposal(candidate: dict) -> dict:
     if isinstance(raw_summary, str):
         raw_summary = [raw_summary]
     return {
-        "headline": proposal.get("headline") or candidate.get("ainetwatch_headline") or candidate.get("proposed_headline") or "",
+        "brief_headline": proposal.get("brief_headline") or proposal.get("headline") or candidate.get("ainetwatch_headline") or candidate.get("proposed_headline") or "",
+        "headline": proposal.get("brief_headline") or proposal.get("headline") or candidate.get("ainetwatch_headline") or candidate.get("proposed_headline") or "",
         "public_summary": raw_summary or [],
         # editorial_notes is reviewer-only and must never enter an approved record.
         "editorial_notes": str(proposal.get("editorial_notes") or candidate.get("editorial_notes") or ""),
@@ -266,11 +267,21 @@ def make_approved(candidate: dict, edits: dict) -> dict:
     if isinstance(public_summary, str):
         public_summary = [line.strip() for line in public_summary.splitlines() if line.strip()]
 
+    # brief_headline is the new canonical name; headline is kept as an alias.
+    # Prefer edits.brief_headline > edits.headline > proposal.brief_headline > proposal.headline.
+    brief_headline = (
+        edits.get("brief_headline")
+        or edits.get("headline")
+        or proposal.get("brief_headline")
+        or proposal["headline"]
+    )
+
     approved = {
         "id": candidate.get("id"),
         "source": source,
         "approved": {
-            "headline": edits.get("headline", proposal["headline"]),
+            "brief_headline": brief_headline,
+            "headline": brief_headline,  # backward-compat alias
             # editorial_notes must never enter the approved record — it is
             # reviewer-only context and is explicitly omitted here.
             "public_summary": public_summary,
@@ -293,6 +304,22 @@ def make_approved(candidate: dict, edits: dict) -> dict:
     return approved
 
 
+def make_archived(candidate: dict) -> dict:
+    """Build an archive record.
+
+    Uses the same approved object as a normal approval (brief_headline,
+    public_summary, locked: true, approved_by: human). Adds status: "archived"
+    and archived_at at the top level so build.py routes it to archive.html only.
+    build.py always reads public content from the approved block.
+    """
+    ts = now_iso()
+    base = make_approved(candidate, {})
+    base["status"] = "archived"
+    base["archived_at"] = ts
+    # approved_at is set inside make_approved → same instant
+    return base
+
+
 def append_log(event: dict) -> None:
     try:
         payload = read_json_checked(LOG_FILE, {"version": 1, "events": []})
@@ -312,7 +339,7 @@ def append_log(event: dict) -> None:
 def apply_action(body: dict) -> tuple[int, dict]:
     candidate_id = str(body.get("id") or "").strip()
     action = str(body.get("action") or "").strip()
-    if not candidate_id or action not in {"approve", "edit_approve", "reject", "snooze"}:
+    if not candidate_id or action not in {"approve", "edit_approve", "reject", "snooze", "archive"}:
         return 400, {"error": "id and a valid action are required"}
 
     # Finding #5: validate `edits` shape before touching any file, so a bad
@@ -349,16 +376,19 @@ def apply_action(body: dict) -> tuple[int, dict]:
         if not candidate:
             return 404, {"error": f"candidate {candidate_id} not found"}
 
-        if action in {"approve", "edit_approve"}:
+        if action in {"approve", "edit_approve", "archive"}:
             try:
                 apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
             except QueueFileError as e:
                 return 500, {"error": f"approved-queue.json is malformed and was not modified: {e.detail}"}
             stories = approved_list(apayload)
             if any(str(s.get("id")) == candidate_id for s in stories):
-                return 409, {"error": "candidate is already approved"}
-            approved = make_approved(candidate, edits if action == "edit_approve" else {})
-            stories.append(approved)
+                return 409, {"error": "candidate is already approved or archived"}
+            if action == "archive":
+                record = make_archived(candidate)
+            else:
+                record = make_approved(candidate, edits if action == "edit_approve" else {})
+            stories.append(record)
             if isinstance(apayload, dict):
                 apayload["version"] = apayload.get("version", 1)
                 apayload["updated_at"] = now_iso()
@@ -366,12 +396,12 @@ def apply_action(body: dict) -> tuple[int, dict]:
             else:
                 apayload = {"version": 1, "updated_at": now_iso(), "stories": stories}
             write_json(APPROVED_FILE, apayload)
-            candidate["status"] = "approved"
+            candidate["status"] = "archived" if action == "archive" else "approved"
             candidate["human_decision"] = {
-                "action": "edit_approve" if action == "edit_approve" else "approve",
+                "action": action,
                 "at": now_iso(),
             }
-            candidate["approved"] = approved["approved"]
+            candidate["approved"] = record["approved"]
 
         elif action == "reject":
             candidate["status"] = "rejected"
@@ -446,11 +476,64 @@ class Handler(BaseHTTPRequestHandler):
                     })
                     return
 
-                active = [c for c in candidates if c.get("status", "review") in {"review", "discovered", "candidate"}]
-                active.sort(key=get_priority, reverse=True)
-                active = active[:12]
+                # 3-day rolling queue: show candidates discovered within the last
+                # 3 calendar days (UTC). Older candidates age out of the active view.
+                # Snoozed candidates remain visible and actionable; snoozed band
+                # takes precedence over carryover band.
+                today_utc = datetime.now(timezone.utc).date()
+                cutoff = today_utc - timedelta(days=3)
+
+                active_statuses = {"review", "discovered", "candidate", "snoozed"}
+                terminal_statuses = {"approved", "rejected", "archived"}
+
+                banded: list[dict] = []
+                for c in candidates:
+                    status = c.get("status", "review")
+                    if status in terminal_statuses:
+                        continue
+                    raw_ts = c.get("discovered_at") or ""
+                    try:
+                        disc_date = date.fromisoformat(raw_ts[:10])
+                    except (ValueError, TypeError):
+                        disc_date = today_utc
+                    if disc_date < cutoff:
+                        continue  # aged out (older than 3 days; boundary day is included)
+
+                    if status == "snoozed":
+                        band = "snoozed"
+                    elif disc_date == today_utc:
+                        band = "current"
+                    else:
+                        band = "carryover"
+
+                    entry = dict(c)
+                    entry["_band"] = band
+                    banded.append(entry)
+
+                # Order: current (rank asc), carryover (discovered_at desc, rank asc),
+                # snoozed last (discovered_at desc).
+                def _rank(c):
+                    r = c.get("rank")
+                    return float(r) if isinstance(r, (int, float)) else 999.0
+
+                current_g = sorted(
+                    [c for c in banded if c.get("_band") == "current"],
+                    key=_rank,
+                )
+                carryover_g = sorted(
+                    [c for c in banded if c.get("_band") == "carryover"],
+                    key=lambda c: (c.get("discovered_at") or "", _rank(c)),
+                    reverse=True,
+                )
+                snoozed_g = sorted(
+                    [c for c in banded if c.get("_band") == "snoozed"],
+                    key=lambda c: c.get("discovered_at") or "",
+                    reverse=True,
+                )
+                banded = current_g + carryover_g + snoozed_g
+
                 self._json(200, {
-                    "candidates": active,
+                    "candidates": banded,
                     "approved_count": len(approved_list(apayload)),
                     "queue_total": len(candidates),
                     "generated_at": cpayload.get("generated_at") if isinstance(cpayload, dict) else None,

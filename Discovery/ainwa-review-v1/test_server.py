@@ -418,6 +418,103 @@ def main():
     spec = SERVER.read_text()
     check("default --host is 127.0.0.1 in source", '"--host", default="127.0.0.1"' in spec)
 
+    # --- Straight to Archive ---
+    tmp3 = Path(tempfile.mkdtemp(prefix="ainwa-test-archive-"))
+    data3 = tmp3 / "data"
+    archive_candidate = make_candidate("arch-001")
+    seed(data3, candidates=[archive_candidate], approved=[])
+    port3 = free_port()
+    base3 = f"http://127.0.0.1:{port3}"
+    proc3 = subprocess.Popen(
+        [sys.executable, str(SERVER), "--port", str(port3), "--data-dir", str(data3), "--no-open"],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        ready3 = wait_ready(base3)
+        check("archive test server starts", ready3)
+        if ready3:
+            status3, body3, _ = request("GET", "/api/state", base3)
+            token3 = (body3 or {}).get("csrf_token")
+            headers3 = {"X-AINWA-CSRF-Token": token3 or ""}
+
+            status3, body3, _ = request("POST", "/api/review", base3,
+                                         body={"id": "arch-001", "action": "archive"},
+                                         headers=headers3)
+            check("archive action returns 200", status3 == 200 and (body3 or {}).get("ok") is True, f"{status3} {body3}")
+
+            aq = json.loads((data3 / "approved-queue.json").read_text())
+            arec = next((s for s in aq.get("stories", []) if s.get("id") == "arch-001"), None)
+            check("archive record present in approved-queue.json", arec is not None, str(aq))
+            check("archive record has status=archived", arec is not None and arec.get("status") == "archived", str(arec))
+            check("archive record has archived_at", arec is not None and bool(arec.get("archived_at")), str(arec))
+            check("archive record has approved.locked=True", arec is not None and arec.get("approved", {}).get("locked") is True, str(arec))
+            check("archive record has approved.approved_by=human", arec is not None and arec.get("approved", {}).get("approved_by") == "human", str(arec))
+            check("archive record has brief_headline in approved", arec is not None and "brief_headline" in arec.get("approved", {}), str(arec))
+
+            cq3 = json.loads((data3 / "candidate-queue.json").read_text())
+            ac = next((c for c in cq3.get("candidates", []) if c.get("id") == "arch-001"), None)
+            check("candidate status set to archived", ac is not None and ac.get("status") == "archived", str(ac))
+
+    finally:
+        proc3.terminate()
+        try:
+            proc3.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc3.kill()
+        shutil.rmtree(tmp3, ignore_errors=True)
+
+    # --- 3-day carryover banding in /api/state ---
+    tmp4 = Path(tempfile.mkdtemp(prefix="ainwa-test-band-"))
+    data4 = tmp4 / "data"
+    from datetime import datetime, timezone, timedelta
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT12:00:00Z")
+    yesterday_str = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT12:00:00Z")
+    old_str = (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%dT12:00:00Z")
+
+    band_candidates = [
+        {**make_candidate("band-today"), "discovered_at": today_str, "status": "review"},
+        {**make_candidate("band-yesterday"), "discovered_at": yesterday_str, "status": "review"},
+        {**make_candidate("band-snoozed"), "discovered_at": yesterday_str, "status": "snoozed"},
+        {**make_candidate("band-old"), "discovered_at": old_str, "status": "review"},
+    ]
+    seed(data4, candidates=band_candidates, approved=[])
+    port4 = free_port()
+    base4 = f"http://127.0.0.1:{port4}"
+    proc4 = subprocess.Popen(
+        [sys.executable, str(SERVER), "--port", str(port4), "--data-dir", str(data4), "--no-open"],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        ready4 = wait_ready(base4)
+        check("band test server starts", ready4)
+        if ready4:
+            status4, body4, _ = request("GET", "/api/state", base4)
+            check("band /api/state returns 200", status4 == 200, f"{status4} {body4}")
+            candidates4 = (body4 or {}).get("candidates", [])
+            ids4 = [c["id"] for c in candidates4]
+            bands4 = {c["id"]: c.get("_band") for c in candidates4}
+
+            check("today candidate present in state", "band-today" in ids4, str(ids4))
+            check("yesterday candidate present in state (carryover)", "band-yesterday" in ids4, str(ids4))
+            check("snoozed candidate present in state", "band-snoozed" in ids4, str(ids4))
+            check("5-day-old candidate aged out of state", "band-old" not in ids4, str(ids4))
+            check("today candidate has _band=current", bands4.get("band-today") == "current", str(bands4))
+            check("yesterday candidate has _band=carryover", bands4.get("band-yesterday") == "carryover", str(bands4))
+            check("snoozed candidate has _band=snoozed", bands4.get("band-snoozed") == "snoozed", str(bands4))
+            check("current candidates appear before carryover",
+                  ids4.index("band-today") < ids4.index("band-yesterday") if "band-today" in ids4 and "band-yesterday" in ids4 else False,
+                  str(ids4))
+            check("snoozed candidates appear after carryover",
+                  ids4.index("band-snoozed") > ids4.index("band-yesterday") if "band-snoozed" in ids4 and "band-yesterday" in ids4 else False,
+                  str(ids4))
+    finally:
+        proc4.terminate()
+        try:
+            proc4.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc4.kill()
+        shutil.rmtree(tmp4, ignore_errors=True)
+
     finish()
 
 

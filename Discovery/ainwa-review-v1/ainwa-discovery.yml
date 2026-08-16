@@ -130,9 +130,11 @@ sources:
   role: Original Reporting
   enabled: true
   priority: high
+  anchor: true
+  ingest_status: deferred
   citation_allowed: 'yes'
   reliability: high
-  notes: Top-tier breaking reporting on AI business, policy, regulation, and geopolitics.
+  notes: Top-tier breaking reporting on AI business, policy, regulation, and geopolitics. No feed_url — deferred to page-check ingestion (not yet implemented); configured-but-inactive anchor.
 - id: SRC-010
   name: Associated Press
   domain: apnews.com
@@ -190,9 +192,11 @@ sources:
   role: Original Reporting
   enabled: true
   priority: high
+  anchor: true
+  ingest_status: deferred
   citation_allowed: 'yes'
   reliability: high
-  notes: High-signal AI lab and technology scoops; strict paywall.
+  notes: High-signal AI lab and technology scoops; strict paywall. No feed_url — deferred to page-check ingestion (not yet implemented); configured-but-inactive anchor.
 - id: SRC-016
   name: Axios
   domain: axios.com
@@ -221,6 +225,7 @@ sources:
   role: Original Reporting
   enabled: true
   priority: high
+  anchor: true
   citation_allowed: 'yes'
   reliability: high
   notes: High-signal AI startup, funding, product, and company reporting.
@@ -282,6 +287,7 @@ sources:
   role: Original Reporting
   enabled: true
   priority: high
+  anchor: true
   citation_allowed: 'yes'
   reliability: high
   notes: High-signal original cybersecurity reporting, including AI-enabled threats.
@@ -507,9 +513,22 @@ sources:
   role: Primary Source
   enabled: true
   priority: high
+  anchor: true
   citation_allowed: conditional
   reliability: medium
-  notes: Fast research discovery; papers are primary research but may be unreviewed preprints.
+  notes: Fast research discovery (cs.AI feed); papers are primary research but may be unreviewed preprints. One anchor slot shared with SRC-061 (cs.LG) — only one arXiv story per shortlist.
+- id: SRC-061
+  name: arXiv
+  domain: arxiv.org
+  feed_url: https://export.arxiv.org/rss/cs.LG
+  category: Research / Academic
+  role: Primary Source
+  enabled: true
+  priority: high
+  anchor: true
+  citation_allowed: conditional
+  reliability: medium
+  notes: Fast research discovery (cs.LG feed); papers are primary research but may be unreviewed preprints. One anchor slot shared with SRC-046 (cs.AI) — only one arXiv story per shortlist.
 - id: SRC-047
   name: Stanford HAI
   domain: hai.stanford.edu

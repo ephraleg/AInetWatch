@@ -4,13 +4,16 @@
   "model": "claude-sonnet-4-6",
   "input_count": 370,
   "excluded_approved": 0,
+  "carryover_count": 0,
   "_language_note": "Candidates are English-only working data in v1 and do not carry a 'language' field during review. The server adds language.source_language/localizations to the APPROVED record automatically at approval time (see server.py normalize_language() and data/approved-queue.example.json) — translation only ever happens after English approval, never during candidacy.",
+  "_headline_note": "brief_headline is the AI-prepared AInetWatch editorial headline, human-approved before publication. headline is an alias for backward compatibility. original_headline is verbatim from the ingested source record; for unresolved Discovery Only leads it is the discovery-source headline, not the underlying article's own headline. source_resolution indicates whether the source is already the primary/original source ('resolved') or a discovery aggregator ('unresolved').",
   "candidates": [
     {
       "id": "cand-001",
       "status": "review",
       "rank": 1,
-      "original_headline": "Example original source headline",
+      "original_headline": "Example original source headline (verbatim from ingest)",
+      "source_resolution": "resolved",
       "source": {
         "name": "Example News",
         "url": "https://example.com/story",
@@ -19,7 +22,8 @@
         "paywall": false
       },
       "proposal": {
-        "headline": "EXAMPLE AINETWATCH HEADLINE",
+        "brief_headline": "EXAMPLE AINETWATCH BRIEF HEADLINE",
+        "headline": "EXAMPLE AINETWATCH BRIEF HEADLINE",
         "public_summary": [
           "What happened, stated briefly.",
           "Why the development matters.",
@@ -29,6 +33,39 @@
         "category": "Models",
         "priority": "High",
         "top_story": true,
+        "developing": false
+      },
+      "advisory": {
+        "grok": {"status": "skipped", "reason": "GROK_API_KEY not set"},
+        "gemini": {"status": "skipped", "reason": "GEMINI_API_KEY not set"}
+      },
+      "discovered_at": "2026-08-13T17:20:00Z"
+    },
+    {
+      "id": "cand-002",
+      "status": "review",
+      "rank": 2,
+      "original_headline": "Techmeme aggregation headline — discovery source, not yet resolved (Reported by/Outlet Name)",
+      "source_resolution": "unresolved",
+      "source": {
+        "name": "Techmeme",
+        "url": "https://www.techmeme.com/260813/p30",
+        "role": "Discovery Only",
+        "reliability": "high",
+        "paywall": false
+      },
+      "proposal": {
+        "brief_headline": "AINETWATCH EDITORIAL HEADLINE FOR UNRESOLVED LEAD",
+        "headline": "AINETWATCH EDITORIAL HEADLINE FOR UNRESOLVED LEAD",
+        "public_summary": [
+          "What happened, stated briefly.",
+          "Why the development matters.",
+          "What changes or who is affected."
+        ],
+        "editorial_notes": "Discovered via Techmeme (cite:no). Source not yet resolved to primary article. Reviewer should open original link, locate the underlying source, and update source URL before approving.",
+        "category": "Business",
+        "priority": "High",
+        "top_story": false,
         "developing": false
       },
       "advisory": {

@@ -1,7 +1,9 @@
 {
   "version": 1,
   "updated_at": "2026-08-13T17:35:00Z",
-  "_language_note": "This file illustrates the shape server.py's make_approved()/normalize_language() actually produce. 'approved-story-v1-en-only' shows what every v1 approval looks like today: source_language is always 'en', localizations is always {} — nothing here is auto-translated or pre-populated. 'approved-story-v2-illustrative-only' is NOT real/current behavior — it shows the future shape a localization entry will have once a translation stage exists, purely so the schema is documented consistently. Do not treat the second record as active data; v1 never writes anything into localizations.",
+  "_language_note": "This file illustrates the shape server.py's make_approved()/normalize_language() actually produce. 'approved-story-v1-en-only' shows what every v1 approval looks like today: source_language is always 'en', localizations is always {} — nothing here is auto-translated or pre-populated.",
+  "_headline_note": "brief_headline is the canonical public headline field. headline is kept as a backward-compat alias with the same value. build.py reads brief_headline preferentially (falls back to headline). editorial_notes is never written to this file.",
+  "_archive_note": "status:'archived' + archived_at route the record to archive.html only (excluded from homepage pool). The approved block is identical in structure to a normal approval — build.py always reads public content from approved regardless of status.",
   "stories": [
     {
       "id": "cand-001",
@@ -13,7 +15,8 @@
         "paywall": false
       },
       "approved": {
-        "headline": "EXAMPLE AINETWATCH HEADLINE",
+        "brief_headline": "EXAMPLE AINETWATCH BRIEF HEADLINE",
+        "headline": "EXAMPLE AINETWATCH BRIEF HEADLINE",
         "public_summary": [
           "What happened, stated briefly.",
           "Why the development matters.",
@@ -28,7 +31,7 @@
         "approved_by": "human",
         "locked": true
       },
-      "original_headline": "Example original source headline",
+      "original_headline": "Example original source headline (verbatim from ingest)",
       "discovered_at": "2026-08-13T17:20:00Z",
       "language": {
         "source_language": "en",
@@ -36,7 +39,9 @@
       }
     },
     {
-      "id": "approved-story-v2-illustrative-only",
+      "id": "cand-003",
+      "status": "archived",
+      "archived_at": "2026-08-13T18:00:00Z",
       "source": {
         "name": "Example News",
         "url": "https://example.com/another-story",
@@ -45,18 +50,19 @@
         "paywall": false
       },
       "approved": {
-        "headline": "EXAMPLE OF AN ALREADY-APPROVED ENGLISH HEADLINE",
+        "brief_headline": "EXAMPLE STORY SENT STRAIGHT TO ARCHIVE",
+        "headline": "EXAMPLE STORY SENT STRAIGHT TO ARCHIVE",
         "public_summary": [
-          "This is the authoritative, human-approved English content.",
-          "A future translation stage would derive from exactly this.",
-          "It would never regenerate or reinterpret the story independently."
+          "What happened, stated briefly.",
+          "Why the development matters.",
+          "What changes or who is affected."
         ],
         "category": "Governance",
         "priority": "Medium",
         "top_story": false,
         "developing": false,
         "paywall": false,
-        "approved_at": "2026-08-13T09:00:00Z",
+        "approved_at": "2026-08-13T18:00:00Z",
         "approved_by": "human",
         "locked": true
       },
@@ -64,14 +70,7 @@
       "discovered_at": "2026-08-13T08:40:00Z",
       "language": {
         "source_language": "en",
-        "localizations": {
-          "es": {
-            "status": "pending",
-            "headline": null,
-            "public_summary": null,
-            "approved_at": null
-          }
-        }
+        "localizations": {}
       }
     }
   ]
