@@ -359,30 +359,82 @@ def build_selection_prompt(
 ) -> tuple[list[dict], str]:
     """Build the Claude selection prompt and return (eligible_items, prompt_text).
 
-    All candidates are visible to Claude as a numbered list. 1-based sequence indices
-    are the only stable identifiers Claude is given — raw feed IDs are not shown,
-    preventing hallucination. Claude returns a structured JSON object with one named
-    anchor slot per anchor source (or null) plus a separate non-anchor list and an
-    explicit ranking. _enforce_anchor_cap remains as a hard post-selection backstop.
+    Candidates are presented in labeled sections — one per anchor source, then a
+    non-anchor section — so the section boundary makes the correct response bucket
+    unambiguous to Claude. Global 1-based integer indices are assigned across the
+    reordered list (anchor sections first, then non-anchor) and are the only stable
+    identifiers given to Claude. item_lookup in main() is built from the returned
+    eligible list so all indices remain deterministic.
     """
     eligible = [i for i in items if i.get("canonical_url") not in excluded_urls]
     categories_str = ", ".join(CATEGORIES)
 
-    lines = []
-    for idx, item in enumerate(eligible, 1):
+    # Fixed display order; must cover every member of ANCHOR_SOURCES.
+    anchor_order = ["Reuters", "The Information", "TechCrunch", "BleepingComputer", "arXiv"]
+
+    # Partition into per-source buckets, preserving relative order within each.
+    by_anchor: dict[str, list[dict]] = {src: [] for src in anchor_order}
+    non_anchor: list[dict] = []
+    for item in eligible:
+        src = item.get("source_name", "")
+        if src in by_anchor:
+            by_anchor[src].append(item)
+        elif src in ANCHOR_SOURCES:
+            # Anchor source not in display order — safe fallback so nothing is lost.
+            non_anchor.append(item)
+        else:
+            non_anchor.append(item)
+
+    # Reordered eligible: anchor sections in display order, then non-anchor.
+    # This is the list returned to main(); item_lookup is keyed 1-based from it.
+    reordered: list[dict] = []
+    for src in anchor_order:
+        reordered.extend(by_anchor[src])
+    reordered.extend(non_anchor)
+
+    # Global 1-based index for each item, mirroring main()'s item_lookup construction.
+    item_idx: dict[int, int] = {id(item): seq for seq, item in enumerate(reordered, 1)}
+
+    def _line(item: dict) -> str:
         age = item.get("age_hours")
         age_str = f"{age:.1f}h" if isinstance(age, (int, float)) else "?h"
-        anchor_tag = " [ANCHOR]" if item.get("source_name", "") in ANCHOR_SOURCES else ""
-        lines.append(
-            f"{idx}. "
+        return (
+            f"{item_idx[id(item)]}. "
             f"[{item.get('source_name', '')} / {item.get('source_role', '')} / "
-            f"cite:{item.get('source_citation_allowed', '?')} / {age_str}]{anchor_tag} "
+            f"cite:{item.get('source_citation_allowed', '?')} / {age_str}] "
             f"{item.get('item_title', '').strip()}"
         )
 
-    anchor_slots_example = ",\n".join(
-        f'    "{src}": null' for src in sorted(ANCHOR_SOURCES)
+    # Build one block per anchor source section.
+    blocks: list[str] = []
+    for src in anchor_order:
+        src_items = by_anchor[src]
+        header = (
+            f'=== {src} [ANCHOR] ===\n'
+            f'Select at most one. Place your pick in anchor_slots["{src}"]. '
+            f'Use only indices from this section.'
+        )
+        body = (
+            "\n".join(_line(it) for it in src_items)
+            if src_items
+            else "(no eligible candidates this run — set slot to null)"
+        )
+        blocks.append(f"{header}\n{body}")
+
+    # Non-anchor section.
+    non_anchor_header = (
+        "=== Non-anchor candidates ===\n"
+        "Place your picks in non_anchor_stories. Use only indices from this section."
     )
+    non_anchor_body = (
+        "\n".join(_line(it) for it in non_anchor)
+        if non_anchor
+        else "(no eligible candidates this run)"
+    )
+    blocks.append(f"{non_anchor_header}\n{non_anchor_body}")
+
+    anchor_slots_example = ",\n".join(f'    "{src}": null' for src in anchor_order)
+    candidates_text = "\n\n".join(blocks)
 
     prompt = f"""You are ANWU, the AInetWatch editorial AI. Select the best AI-industry stories \
 (up to {MAX_CANDIDATES} total) from the list below for today's wire.
@@ -394,20 +446,22 @@ Selection criteria (in order of importance):
 4. Reader relevance for an AI-industry professional audience
 5. Non-duplication (prefer stories covering distinct events)
 
-Anchor source rules (items marked [ANCHOR]):
-- Reuters, The Information, TechCrunch, BleepingComputer, arXiv (cs.AI / cs.LG) are anchor sources.
-- The response schema gives you exactly ONE named slot per anchor source. A TechCrunch story must \
-go in anchor_slots["TechCrunch"]; a Reuters story in anchor_slots["Reuters"]; and so on. Each \
-anchor slot must match the source of the item you place in it.
-- Set an anchor slot to null if no story from that source qualifies. An unfilled slot is correct \
-— do not force a weak story to meet a quota.
-- non_anchor_stories must contain ONLY stories from non-anchor sources. Any anchor-source story \
-placed in non_anchor_stories will be silently rejected and will not appear in the output.
+Response rules:
+- Candidates are divided into labeled sections below. Each integer index is globally unique \
+across all sections and maps to exactly one feed record.
+- For each anchor section (Reuters, The Information, TechCrunch, BleepingComputer, arXiv): \
+select at most one story and place it in the matching anchor_slots key using only an index \
+from that section. If no story in a section qualifies, set its slot to null.
+- For Non-anchor candidates: place your selections in non_anchor_stories using only indices \
+from that section.
+- Using an index from the wrong section will cause the selection to be silently rejected \
+and it will not appear in the output.
 - Techmeme is Discovery Only and is never an anchor.
+- ranking lists the item_id of every accepted selection in priority order across all sections.
 - Do not fill weak stories merely to reach {MAX_CANDIDATES}. Quality over count.
 
 Story fields (same for anchor slots and non-anchor stories):
-- item_id: the sequence number from the left of the candidate list (integer, e.g. 3)
+- item_id: the global integer index from the candidate list (e.g. 3)
 - brief_headline: AInetWatch-style in ALL CAPS, ≤12 words, punchy and factual
 - public_summary: exactly 3 reader-facing bullets — (1) what happened, (2) why it matters, \
 (3) what changes or who is affected. No internal language. Published verbatim if approved.
@@ -425,7 +479,7 @@ Return ONLY a JSON object with this exact structure, no other text:
   }},
   "non_anchor_stories": [
     {{
-      "item_id": 3,
+      "item_id": 42,
       "brief_headline": "ALL CAPS HEADLINE HERE",
       "public_summary": ["What happened.", "Why it matters.", "What changes or who is affected."],
       "editorial_notes": "Source quality and verification notes for the reviewer.",
@@ -435,16 +489,17 @@ Return ONLY a JSON object with this exact structure, no other text:
       "developing": false
     }}
   ],
-  "ranking": [5, 3, 12]
+  "ranking": [5, 42, 12]
 }}
 
-ranking must list the item_id of EVERY selected story (from anchor_slots AND non_anchor_stories) \
-in priority order, highest first. Total ranking length must not exceed {MAX_CANDIDATES}.
+ranking must list the item_id of EVERY selected story in priority order, highest first. \
+Total ranking length must not exceed {MAX_CANDIDATES}.
 
-Candidates ({len(eligible)} items after excluding already-approved and carryover):
-{chr(10).join(lines)}"""
+Candidates:
 
-    return eligible, prompt
+{candidates_text}"""
+
+    return reordered, prompt
 
 
 # ---------------------------------------------------------------------------

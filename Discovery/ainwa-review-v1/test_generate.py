@@ -639,6 +639,87 @@ class TestCarryoverMerge(unittest.TestCase):
 
 
 
+# ---------------------------------------------------------------------------
+# Prompt section layout tests
+# ---------------------------------------------------------------------------
+
+class TestPromptSections(unittest.TestCase):
+    """build_selection_prompt presents candidates in labeled source sections."""
+
+    def _anchor_item(self, src, url_suffix, **kwargs):
+        return _item(source_name=src, canonical_url=f"https://example.com/{url_suffix}", **kwargs)
+
+    def test_anchor_items_appear_in_their_named_section(self):
+        tc = self._anchor_item("TechCrunch", "tc1", item_title="TC Story")
+        cnbc = self._anchor_item("CNBC", "cnbc1", item_title="CNBC Story")
+        eligible, prompt = generate.build_selection_prompt([tc, cnbc], excluded_urls=set())
+        tc_idx = next(i + 1 for i, it in enumerate(eligible) if it is tc)
+        tc_section_start = prompt.index('=== TechCrunch [ANCHOR] ===')
+        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
+        tc_line_pos = prompt.index(f"{tc_idx}. [TechCrunch")
+        self.assertGreater(tc_line_pos, tc_section_start)
+        self.assertLess(tc_line_pos, non_anchor_start)
+
+    def test_non_anchor_items_appear_in_non_anchor_section(self):
+        tc = self._anchor_item("TechCrunch", "tc1")
+        cnbc = self._anchor_item("CNBC", "cnbc1", item_title="CNBC Story")
+        eligible, prompt = generate.build_selection_prompt([tc, cnbc], excluded_urls=set())
+        cnbc_idx = next(i + 1 for i, it in enumerate(eligible) if it is cnbc)
+        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
+        cnbc_line_pos = prompt.index(f"{cnbc_idx}. [CNBC")
+        self.assertGreater(cnbc_line_pos, non_anchor_start)
+
+    def test_anchor_item_index_not_in_non_anchor_section(self):
+        tc = self._anchor_item("TechCrunch", "tc1")
+        eligible, prompt = generate.build_selection_prompt([tc], excluded_urls=set())
+        tc_idx = next(i + 1 for i, it in enumerate(eligible) if it is tc)
+        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
+        non_anchor_text = prompt[non_anchor_start:]
+        self.assertNotIn(f"{tc_idx}. [TechCrunch", non_anchor_text)
+
+    def test_empty_anchor_section_shows_null_placeholder(self):
+        cnbc = self._anchor_item("CNBC", "cnbc1")
+        _, prompt = generate.build_selection_prompt([cnbc], excluded_urls=set())
+        reuters_start = prompt.index('=== Reuters [ANCHOR] ===')
+        the_info_start = prompt.index('=== The Information [ANCHOR] ===')
+        reuters_block = prompt[reuters_start:the_info_start]
+        self.assertIn("null", reuters_block)
+
+    def test_section_header_names_correct_slot_key(self):
+        tc = self._anchor_item("TechCrunch", "tc1")
+        _, prompt = generate.build_selection_prompt([tc], excluded_urls=set())
+        self.assertIn('anchor_slots["TechCrunch"]', prompt)
+
+    def test_non_anchor_section_references_non_anchor_stories(self):
+        cnbc = self._anchor_item("CNBC", "cnbc1")
+        _, prompt = generate.build_selection_prompt([cnbc], excluded_urls=set())
+        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
+        header_block = prompt[non_anchor_start:non_anchor_start + 150]
+        self.assertIn("non_anchor_stories", header_block)
+
+    def test_eligible_list_is_reordered_anchor_first_then_non_anchor(self):
+        # Input order: CNBC, TechCrunch, BleepingComputer
+        # Expected reorder: TechCrunch, BleepingComputer, CNBC
+        cnbc = self._anchor_item("CNBC", "cnbc1")
+        tc = self._anchor_item("TechCrunch", "tc1")
+        bc = self._anchor_item("BleepingComputer", "bc1")
+        eligible, _ = generate.build_selection_prompt([cnbc, tc, bc], excluded_urls=set())
+        sources = [it.get("source_name") for it in eligible]
+        self.assertEqual(sources.index("TechCrunch"), 0)
+        self.assertEqual(sources.index("BleepingComputer"), 1)
+        self.assertEqual(sources.index("CNBC"), 2)
+
+    def test_global_indices_match_eligible_list_positions(self):
+        tc = self._anchor_item("TechCrunch", "tc1")
+        cnbc = self._anchor_item("CNBC", "cnbc1")
+        eligible, prompt = generate.build_selection_prompt([cnbc, tc], excluded_urls=set())
+        # Reorder: tc (idx 1), cnbc (idx 2)
+        self.assertIs(eligible[0], tc)
+        self.assertIs(eligible[1], cnbc)
+        self.assertIn("1. [TechCrunch", prompt)
+        self.assertIn("2. [CNBC", prompt)
+
+
 class TestIndexSelection(unittest.TestCase):
     """Claude's integer item_id maps deterministically to exact source records."""
 
