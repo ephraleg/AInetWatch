@@ -813,6 +813,51 @@ class TestStructuredResponseContract(unittest.TestCase):
         )
         self.assertIsInstance(result[0]["item_id"], int)
 
+    # --- Bucket / source validation ---
+
+    def test_techcrunch_in_non_anchor_stories_rejected(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=[sel], ranking=[1]), lookup
+        )
+        self.assertEqual(result, [])
+
+    def test_arxiv_in_non_anchor_stories_rejected(self):
+        lookup = {1: _item(source_name="arXiv")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=[sel], ranking=[1]), lookup
+        )
+        self.assertEqual(result, [])
+
+    def test_non_anchor_source_in_anchor_slot_rejected(self):
+        # CNBC item placed in the TechCrunch anchor slot
+        lookup = {1: _item(source_name="CNBC")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(anchor_slots={"TechCrunch": sel}, ranking=[1]), lookup
+        )
+        self.assertEqual(result, [])
+
+    def test_correctly_matched_anchor_slot_accepted(self):
+        lookup = {1: _item(source_name="TechCrunch")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(anchor_slots={"TechCrunch": sel}, ranking=[1]), lookup
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["item_id"], 1)
+
+    def test_correctly_matched_non_anchor_accepted(self):
+        lookup = {1: _item(source_name="CNBC")}
+        sel = dict(_selection(item_id=1))
+        result = generate._parse_claude_response(
+            self._raw(non_anchor_stories=[sel], ranking=[1]), lookup
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["item_id"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

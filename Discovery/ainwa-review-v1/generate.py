@@ -229,6 +229,12 @@ def _parse_claude_response(
     for src_name, story in (data.get("anchor_slots") or {}).items():
         if story is None:
             continue
+        if src_name not in ANCHOR_SOURCES:
+            print(
+                f"[AINWA] WARNING: anchor_slots contains unknown source {src_name!r}; skipping.",
+                file=sys.stderr,
+            )
+            continue
         if not isinstance(story, dict):
             print(
                 f"[AINWA] WARNING: anchor slot {src_name!r} is not an object; skipping.",
@@ -246,6 +252,14 @@ def _parse_claude_response(
         if seq not in item_lookup:
             print(
                 f"[AINWA] WARNING: out-of-range index {seq} in anchor slot {src_name!r}; skipping.",
+                file=sys.stderr,
+            )
+            continue
+        actual_src = item_lookup[seq].get("source_name", "")
+        if actual_src != src_name:
+            print(
+                f"[AINWA] WARNING: anchor slot {src_name!r} contains index {seq} "
+                f"which maps to source {actual_src!r}; rejecting.",
                 file=sys.stderr,
             )
             continue
@@ -271,6 +285,14 @@ def _parse_claude_response(
         if seq not in item_lookup:
             print(
                 f"[AINWA] WARNING: out-of-range index {seq} in non_anchor_stories[{i}]; skipping.",
+                file=sys.stderr,
+            )
+            continue
+        actual_src = item_lookup[seq].get("source_name", "")
+        if actual_src in ANCHOR_SOURCES:
+            print(
+                f"[AINWA] WARNING: non_anchor_stories[{i}] contains anchor-source item "
+                f"(index {seq}, {actual_src!r}); rejecting.",
                 file=sys.stderr,
             )
             continue
