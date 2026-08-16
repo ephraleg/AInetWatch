@@ -69,6 +69,29 @@ Handoff file for future Claude Code sessions. Read this first — don't rediscov
 - AI prepares; humans decide
 - Keep AINWA v1 lean; avoid framework/database/scope creep
 
+## Homepage retention rule (locked)
+
+- The homepage renders the **50 most recently approved stories**, ordered by `approved.approved_at` descending.
+- Stories at positions 51 and beyond roll to `archive.html`.
+- `approved.priority`, `top_story`, and `developing` affect **rendering prominence and layout only** (column placement, top-story slot, developing tag) — they do not affect which 50 stories are selected.
+- This rule is enforced by `build.py`. It may not be overridden by the build step.
+
+## Pipeline status
+
+- **AINWA-005** Candidate generation — `generate.py` complete; awaiting live run once ANTHROPIC_API_KEY is set. (Refs #83)
+- **AINWA-006** public_summary / editorial_notes separation — complete. Server and console updated. (Refs #84)
+- **AINWA-007** Multilingual schema — complete (server.py `normalize_language()`). (Refs #85)
+- **AINWA-008** Candidate pipeline → review console — field contract verified; console renders generate.py output. (Refs #86)
+
+Pipeline: ingest.py → raw-discovery.json → filter.py → filtered-discovery.json → generate.py → candidate-queue.json → [human review] → approved-queue.json → build.py → index.html + archive.html
+
+## Test counts (current)
+
+- Ingestion tests: 54 passing
+- Filter tests: 53 passing
+- Review console tests: 61 passing
+- Candidate generation tests: 31 passing
+
 ## Next session
 
-Start by reading this file and checking the existing Graphify graph. Do not redo AINWA-001 through AINWA-004. The pipeline so far: ingest.py → raw-discovery.json → filter.py → filtered-discovery.json. Next step is AI-assisted candidate generation (reads filtered-discovery.json, writes candidate-queue.json).
+Read this file first. AINWA-001 through AINWA-008 are complete. Next: AINWA-009 static build (`build.py`), then #88 (Cloudflare publish integration) and #89 (end-to-end production readiness).

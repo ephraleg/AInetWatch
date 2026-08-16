@@ -163,6 +163,25 @@ deterministic build step is the *only* thing that emits markup. This is what mak
 review straightforward — you can always regenerate the homepage from the approved dataset alone, and
 `git` gives you full version history of what was approved and when.
 
+### 5b. Homepage retention rule (locked — do not override in build step)
+
+The homepage renders the **50 most recently approved stories**, ordered by `approved.approved_at`
+descending. Stories at positions 51 and beyond roll to `archive.html`.
+
+`approved.priority`, `top_story`, and `developing` govern **rendering prominence and layout only**:
+
+- `top_story: true` → the story gets the `.top-story` section (large headline slot at top)
+- `developing: true` → the story gets the `.developing-strip` section (second featured slot)
+- `priority` → column placement and ordering within the three-column wire grid
+
+None of these fields affect which 50 stories are selected. Selection is purely by recency
+(`approved_at` descending). A high-priority story approved two days ago does not displace a
+low-priority story approved one minute ago.
+
+This rule is enforced in `build.py` and may not be relaxed without updating this document.
+
+---
+
 Field → markup mapping (also documented inline in `index.html`'s top comment, and reflected today via
 non-functional `data-story-id` / `data-top-story` / `data-developing` attributes on the sample
 markup, so the mapping is inspectable in the file itself, not just in this doc):
@@ -170,15 +189,19 @@ markup, so the mapping is inspectable in the file itself, not just in this doc):
 | Approved record field | Homepage element |
 |---|---|
 | `approved.top_story` | Selects which single story gets the `.top-story` treatment |
-| `approved.developing` | Renders the "Developing" tag |
-| `approved.display_headline` | Headline link text |
-| `source.source_name` | Source label |
-| `source.source_url` | Headline `href` |
-| `approved.priority` | Ordering of stories within/between the three columns |
-| `approved.categories[]` | Tooltip category tag pills |
-| `approved.summary_bullets[]` | Tooltip bullets |
-| `approved.image` / `image_alt` | Optional rare story image + its alt text |
-| `source.source_published_at` / `approved.approved_at` | Reserved for future timestamp display (not currently rendered) |
+| `approved.developing` | Renders the "Developing" tag and developing-strip slot |
+| `approved.headline` | Headline link text |
+| `source.name` | Source label |
+| `source.url` | Headline `href` (http/https only; otherwise no link) |
+| `approved.priority` | Column placement and ordering within the wire grid |
+| `approved.category` | Tooltip category tag |
+| `approved.public_summary[]` | Tooltip bullets (published verbatim; 3 bullets) |
+| `approved.approved_at` | Used for homepage retention sort (50 most recent); not yet displayed |
+| `approved.image` / `image_alt` | Optional story image + alt text (reserved; not yet rendered) |
+
+**`editorial_notes` is never read by `build.py`.** It is reviewer-only data and must not
+appear in any generated HTML output. `approved` records do not carry `editorial_notes` (enforced
+by `server.py`'s `make_approved()`), but `build.py` must not read it even if present.
 
 ### 5a. What requires a schema change, and what doesn't
 
