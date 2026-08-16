@@ -8,3 +8,6 @@ graphify-out/
 __pycache__/
 *.pyc
 *.pyo
+
+# AINWA publish staging directory — ephemeral build output, never commit
+Discovery/ainwa-review-v1/dist/
