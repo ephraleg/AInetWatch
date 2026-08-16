@@ -91,7 +91,17 @@ Pipeline: ingest.py → raw-discovery.json → filter.py → filtered-discovery.
 - Filter tests: 53 passing
 - Review console tests: 61 passing
 - Candidate generation tests: 31 passing
+- Build tests: 20 passing
+- Publish/trust-chain tests: 9 passing
+
+## Current state (updated)
+
+- **AINWA-009** Static build (`build.py`) — complete (#87 closed)
+- **AINWA-010** Publish gate (`publish.sh`) — complete (#88 closed)
+- **AINWA-011** End-to-end production readiness — complete (#89 closed)
 
 ## Next session
 
-Read this file first. AINWA-001 through AINWA-008 are complete. Next: AINWA-009 static build (`build.py`), then #88 (Cloudflare publish integration) and #89 (end-to-end production readiness).
+Read this file first. AINWA-001 through AINWA-011 are complete. Pipeline is production-ready pending:
+- First live candidate generation run (requires `ANTHROPIC_API_TOKEN`)
+- First live deploy (requires `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`; operator runs `bash Discovery/ainwa-review-v1/publish.sh --deploy`)
