@@ -396,9 +396,13 @@ Selection criteria (in order of importance):
 
 Anchor source rules (items marked [ANCHOR]):
 - Reuters, The Information, TechCrunch, BleepingComputer, arXiv (cs.AI / cs.LG) are anchor sources.
-- The response schema gives you exactly ONE named slot per anchor source. Fill it with the best \
-qualifying story object, or set it to null. Do NOT place anchor-source stories in non_anchor_stories.
-- An unfilled anchor slot is correct — do not force a weak story to meet a quota.
+- The response schema gives you exactly ONE named slot per anchor source. A TechCrunch story must \
+go in anchor_slots["TechCrunch"]; a Reuters story in anchor_slots["Reuters"]; and so on. Each \
+anchor slot must match the source of the item you place in it.
+- Set an anchor slot to null if no story from that source qualifies. An unfilled slot is correct \
+— do not force a weak story to meet a quota.
+- non_anchor_stories must contain ONLY stories from non-anchor sources. Any anchor-source story \
+placed in non_anchor_stories will be silently rejected and will not appear in the output.
 - Techmeme is Discovery Only and is never an anchor.
 - Do not fill weak stories merely to reach {MAX_CANDIDATES}. Quality over count.
 
