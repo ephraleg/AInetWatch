@@ -4,10 +4,28 @@ purpose: Lightweight discovery registry and policy for AInetWatch news sourcing.
 discovery_policy:
   registry_first: true
   open_web_default: false
-  priority_schedule:
-    high: every_discovery_run
-    medium: reduced_frequency
-    low: daily_or_overflow_sweep
+  ingestion_policy:
+    regular_run:
+      tiers: [1, 2]
+      requires: [enabled, feed_url]
+      note: >
+        Sources must be enabled: true, tier 1 or 2, and have a valid non-empty
+        feed_url to be fetched on every regular run.
+    deferred:
+      tiers: [3, 4]
+      note: >
+        Tier 3 and Tier 4 sources are configured and enabled but not fetched on
+        regular runs yet.
+    inactive:
+      note: >
+        Sources without a feed_url are configured but produce no items until a
+        feed is added. No feed_url values are invented — they must be verified
+        before setting.
+  access_policy:
+    note: >
+      Preselection scoring prefers free sources and meaningfully penalizes paywalled
+      ones. High-impact paywalled stories are never automatically excluded.
+      access: free > unknown > mixed > paywalled in scoring weight.
   discovery_only:
     may_generate_leads: true
     may_be_final_source: false
@@ -19,7 +37,7 @@ discovery_policy:
     rule: Resolve promising leads to a Primary Source or Original Reporting source whenever one exists.
   top_story_selection:
     selector: Claude
-    maximum_stories: 12
+    maximum_stories: 20
     criteria:
     - importance
     - timeliness
@@ -45,19 +63,23 @@ sources:
 - id: SRC-001
   name: The Rundown AI
   domain: therundown.ai
+  tier: 4
   category: AI News / Discovery
   role: Discovery Only
+  access: unknown
   enabled: true
-  priority: high
+  priority: low
   citation_allowed: 'no'
   reliability: medium
   notes: High-signal daily discovery; resolve every lead to the original source.
 - id: SRC-002
   name: Techmeme
   domain: techmeme.com
-  feed_url: https://www.techmeme.com/feed.xml
+  tier: 1
   category: AI News / Discovery
   role: Discovery Only
+  access: free
+  feed_url: https://www.techmeme.com/feed.xml
   enabled: true
   priority: high
   citation_allowed: 'no'
@@ -66,18 +88,22 @@ sources:
 - id: SRC-003
   name: AI Weekly
   domain: aiweekly.co
+  tier: 4
   category: AI News / Discovery
   role: Discovery Only
+  access: unknown
   enabled: true
-  priority: medium
+  priority: low
   citation_allowed: 'no'
   reliability: medium
   notes: Useful weekly AI aggregation; lower-frequency discovery input.
 - id: SRC-004
   name: AI Breakfast
   domain: aibreakfast.com
+  tier: 4
   category: AI News / Discovery
   role: Discovery Only
+  access: unknown
   enabled: true
   priority: low
   citation_allowed: 'no'
@@ -86,18 +112,22 @@ sources:
 - id: SRC-005
   name: Ben's Bites
   domain: bensbites.co
+  tier: 4
   category: AI News / Discovery
   role: Discovery Only
+  access: mixed
   enabled: true
-  priority: medium
+  priority: low
   citation_allowed: 'no'
   reliability: medium
   notes: Useful for early AI product and builder signals; discovery only.
 - id: SRC-006
   name: TLDR AI
   domain: tldr.tech
+  tier: 4
   category: AI News / Discovery
   role: Discovery Only
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'no'
@@ -108,100 +138,119 @@ sources:
   domain: news.ycombinator.com
   category: Technology News
   role: Discovery Only
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'no'
   reliability: medium
-  notes: Good early signal for technical releases; high noise, so discovery only.
+  notes: Good early signal for technical releases; high noise, so discovery only. Not in authoritative tier list; no tier assigned.
 - id: SRC-008
   name: Papers with Code
   domain: paperswithcode.com
+  tier: 4
   category: Research / Academic
-  role: Discovery Only
+  role: Primary Source
+  access: free
   enabled: true
-  priority: medium
+  priority: low
   citation_allowed: 'no'
   reliability: high
   notes: Useful structured discovery for trending ML papers and implementations.
 - id: SRC-009
   name: Reuters
   domain: reuters.com
+  tier: 1
   category: General News
   role: Original Reporting
+  access: mixed
   enabled: true
   priority: high
   anchor: true
   ingest_status: deferred
   citation_allowed: 'yes'
   reliability: high
-  notes: Top-tier breaking reporting on AI business, policy, regulation, and geopolitics. No feed_url — deferred to page-check ingestion (not yet implemented); configured-but-inactive anchor.
+  notes: Top-tier breaking reporting on AI business, policy, regulation, and geopolitics. No feed_url — deferred to page-check ingestion (not yet implemented); configured-but-inactive.
 - id: SRC-010
   name: Associated Press
   domain: apnews.com
+  tier: 1
   category: General News
   role: Original Reporting
+  access: free
   enabled: true
-  priority: medium
+  priority: high
   citation_allowed: 'yes'
   reliability: high
   notes: Reliable mainstream reporting; useful baseline for major AI developments.
 - id: SRC-011
   name: Bloomberg
   domain: bloomberg.com
+  tier: 1
   category: Business / Finance
   role: Original Reporting
+  access: paywalled
   enabled: true
   priority: high
   citation_allowed: 'yes'
   reliability: high
-  notes: High-signal original reporting on AI companies, markets, infrastructure, and policy; frequent paywall.
+  notes: High-signal original reporting on AI companies, markets, infrastructure, and policy; paywalled.
 - id: SRC-012
   name: Financial Times
   domain: ft.com
+  tier: 1
   category: Business / Finance
   role: Original Reporting
+  access: paywalled
   enabled: true
   priority: high
   citation_allowed: 'yes'
   reliability: high
-  notes: Strong global AI business and regulatory reporting; frequent paywall.
+  notes: Strong global AI business and regulatory reporting; paywalled.
 - id: SRC-013
   name: Wall Street Journal
   domain: wsj.com
+  tier: 1
   category: Business / Finance
   role: Original Reporting
+  access: paywalled
   enabled: true
   priority: high
   citation_allowed: 'yes'
   reliability: high
-  notes: Strong original reporting on enterprise AI, investment, and major companies; frequent paywall.
+  notes: Strong original reporting on enterprise AI, investment, and major companies; paywalled.
 - id: SRC-014
   name: New York Times
   domain: nytimes.com
+  tier: 2
   category: General News
   role: Original Reporting
+  access: mixed
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: Major investigations and broad-impact AI reporting; frequent paywall.
+  notes: Major investigations and broad-impact AI reporting; metered paywall.
 - id: SRC-015
   name: The Information
   domain: theinformation.com
+  tier: 1
   category: Technology News
   role: Original Reporting
+  access: paywalled
   enabled: true
   priority: high
   anchor: true
   ingest_status: deferred
   citation_allowed: 'yes'
   reliability: high
-  notes: High-signal AI lab and technology scoops; strict paywall. No feed_url — deferred to page-check ingestion (not yet implemented); configured-but-inactive anchor.
+  notes: High-signal AI lab and technology scoops; strict paywall. No feed_url — deferred to page-check ingestion (not yet implemented).
 - id: SRC-016
   name: Axios
   domain: axios.com
+  tier: 2
   category: General News
   role: Original Reporting
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -210,8 +259,10 @@ sources:
 - id: SRC-017
   name: CNBC
   domain: cnbc.com
+  tier: 2
   category: Business / Finance
   role: Original Reporting
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -220,9 +271,11 @@ sources:
 - id: SRC-018
   name: TechCrunch
   domain: techcrunch.com
-  feed_url: https://techcrunch.com/feed/
+  tier: 1
   category: Technology News
   role: Original Reporting
+  access: free
+  feed_url: https://techcrunch.com/feed/
   enabled: true
   priority: high
   anchor: true
@@ -232,8 +285,10 @@ sources:
 - id: SRC-019
   name: The Verge
   domain: theverge.com
+  tier: 2
   category: Technology News
   role: Original Reporting
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -242,8 +297,10 @@ sources:
 - id: SRC-020
   name: Ars Technica
   domain: arstechnica.com
+  tier: 2
   category: Technology News
   role: Original Reporting
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -252,39 +309,47 @@ sources:
 - id: SRC-021
   name: WIRED
   domain: wired.com
+  tier: 2
   category: Technology News
   role: Original Reporting
+  access: mixed
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: Strong original reporting on AI security, policy, culture, and products.
+  notes: Strong original reporting on AI security, policy, culture, and products; some metered content.
 - id: SRC-022
   name: MIT Technology Review
   domain: technologyreview.com
+  tier: 2
   category: Technology News
   role: Original Reporting
+  access: mixed
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: High-quality AI research, policy, and impact reporting.
+  notes: High-quality AI research, policy, and impact reporting; some metered content.
 - id: SRC-023
   name: VentureBeat
   domain: venturebeat.com
+  tier: 4
   category: Technology News
-  role: Mixed
+  role: Original Reporting
+  access: free
   enabled: true
-  priority: medium
+  priority: low
   citation_allowed: conditional
   reliability: medium
   notes: AI-focused enterprise coverage with mixed original and aggregated material.
 - id: SRC-024
   name: BleepingComputer
   domain: bleepingcomputer.com
-  feed_url: https://www.bleepingcomputer.com/feed/
+  tier: 1
   category: Cybersecurity
   role: Original Reporting
+  access: free
+  feed_url: https://www.bleepingcomputer.com/feed/
   enabled: true
   priority: high
   anchor: true
@@ -294,8 +359,10 @@ sources:
 - id: SRC-025
   name: Dark Reading
   domain: darkreading.com
+  tier: 2
   category: Cybersecurity
-  role: Mixed
+  role: Original Reporting
+  access: free
   enabled: true
   priority: medium
   citation_allowed: conditional
@@ -304,18 +371,22 @@ sources:
 - id: SRC-026
   name: IEEE Spectrum
   domain: spectrum.ieee.org
+  tier: 2
   category: Research / Academic
   role: Original Reporting
+  access: free
   enabled: true
-  priority: low
+  priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: Deep engineering reporting; valuable but lower-frequency for the daily AI wire.
+  notes: Deep engineering reporting; valuable for AI systems, science, and research stories.
 - id: SRC-027
   name: Tech Policy Press
   domain: techpolicy.press
+  tier: 2
   category: Policy / Governance
   role: Original Reporting
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -324,9 +395,11 @@ sources:
 - id: SRC-028
   name: The Record
   domain: therecord.media
-  feed_url: https://therecord.media/feed
+  tier: 1
   category: Cybersecurity
   role: Original Reporting
+  access: free
+  feed_url: https://therecord.media/feed
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -337,18 +410,21 @@ sources:
   domain: politico.com
   category: Policy / Governance
   role: Original Reporting
+  access: mixed
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: Strong U.S. and EU policy reporting; some content may be paywalled.
+  notes: Strong U.S. and EU policy reporting; some content may be paywalled. Not in authoritative tier list; no tier assigned.
 - id: SRC-030
   name: 404 Media
   domain: 404media.co
+  tier: 2
   category: Technology News
   role: Original Reporting
+  access: mixed
   enabled: true
-  priority: low
+  priority: medium
   citation_allowed: 'yes'
   reliability: high
   notes: Investigative technology reporting; useful for unusual AI/platform stories.
@@ -357,36 +433,41 @@ sources:
   domain: fortune.com
   category: Business / Finance
   role: Original Reporting
+  access: mixed
   enabled: true
   priority: low
   citation_allowed: 'yes'
   reliability: high
-  notes: Useful enterprise and executive AI reporting; some content is metered or paywalled.
+  notes: Useful enterprise and executive AI reporting; some content is metered or paywalled. Not in authoritative tier list; no tier assigned.
 - id: SRC-032
   name: Krebs on Security
   domain: krebsonsecurity.com
   category: Cybersecurity
   role: Original Reporting
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
   reliability: high
-  notes: Top-tier cybercrime investigations; AI-specific stories are lower frequency.
+  notes: Top-tier cybercrime investigations; AI-specific stories are lower frequency. Not in authoritative tier list; no tier assigned.
 - id: SRC-033
   name: CyberScoop
   domain: cyberscoop.com
   category: Cybersecurity
   role: Original Reporting
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
   reliability: high
-  notes: Useful government-security reporting when AI intersects with cybersecurity policy.
+  notes: Useful government-security reporting when AI intersects with cybersecurity policy. Not in authoritative tier list; no tier assigned.
 - id: SRC-034
   name: OpenAI
   domain: openai.com
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -395,8 +476,10 @@ sources:
 - id: SRC-035
   name: Anthropic
   domain: anthropic.com
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -405,9 +488,11 @@ sources:
 - id: SRC-036
   name: Google DeepMind
   domain: deepmind.google
-  feed_url: https://deepmind.google/blog/rss.xml
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
+  feed_url: https://deepmind.google/blog/rss.xml
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -416,8 +501,10 @@ sources:
 - id: SRC-037
   name: xAI
   domain: x.ai
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -426,8 +513,10 @@ sources:
 - id: SRC-038
   name: Meta AI / FAIR
   domain: ai.meta.com
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -436,9 +525,11 @@ sources:
 - id: SRC-039
   name: NVIDIA
   domain: nvidia.com
-  feed_url: https://blogs.nvidia.com/feed/
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
+  feed_url: https://blogs.nvidia.com/feed/
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -447,8 +538,10 @@ sources:
 - id: SRC-040
   name: Microsoft Research
   domain: microsoft.com
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -457,9 +550,11 @@ sources:
 - id: SRC-041
   name: Google AI
   domain: ai.google
-  feed_url: https://blog.google/technology/ai/rss/
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
+  feed_url: https://blog.google/technology/ai/rss/
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -468,8 +563,10 @@ sources:
 - id: SRC-042
   name: Hugging Face
   domain: huggingface.co
+  tier: 1
   category: Primary AI Lab / Company
-  role: Mixed
+  role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: conditional
@@ -478,8 +575,10 @@ sources:
 - id: SRC-043
   name: Amazon AWS / AI
   domain: aws.amazon.com
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -488,8 +587,10 @@ sources:
 - id: SRC-044
   name: Cohere
   domain: cohere.com
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
@@ -498,8 +599,10 @@ sources:
 - id: SRC-045
   name: Mistral AI
   domain: mistral.ai
+  tier: 1
   category: Primary AI Lab / Company
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -508,32 +611,24 @@ sources:
 - id: SRC-046
   name: arXiv
   domain: arxiv.org
+  tier: 1
+  category: Research / Academic
+  role: Primary Source
+  access: free
   feed_url: https://export.arxiv.org/rss/cs.AI
-  category: Research / Academic
-  role: Primary Source
   enabled: true
   priority: high
   anchor: true
   citation_allowed: conditional
   reliability: medium
-  notes: Fast research discovery (cs.AI feed); papers are primary research but may be unreviewed preprints. One anchor slot shared with SRC-061 (cs.LG) — only one arXiv story per shortlist.
-- id: SRC-061
-  name: arXiv
-  domain: arxiv.org
-  feed_url: https://export.arxiv.org/rss/cs.LG
-  category: Research / Academic
-  role: Primary Source
-  enabled: true
-  priority: high
-  anchor: true
-  citation_allowed: conditional
-  reliability: medium
-  notes: Fast research discovery (cs.LG feed); papers are primary research but may be unreviewed preprints. One anchor slot shared with SRC-046 (cs.AI) — only one arXiv story per shortlist.
+  notes: Fast research discovery (cs.AI feed); papers are primary research but may be unreviewed preprints.
 - id: SRC-047
   name: Stanford HAI
   domain: hai.stanford.edu
+  tier: 4
   category: Research / Academic
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
@@ -544,16 +639,19 @@ sources:
   domain: github.blog
   category: Technology News
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
   reliability: high
-  notes: Primary source for GitHub Copilot and developer-platform AI announcements.
+  notes: Primary source for GitHub Copilot and developer-platform AI announcements. Not in authoritative tier list; no tier assigned.
 - id: SRC-049
   name: NIST
   domain: nist.gov
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -562,9 +660,11 @@ sources:
 - id: SRC-050
   name: Federal Register
   domain: federalregister.gov
-  feed_url: https://www.federalregister.gov/api/v1/documents.rss?conditions%5Bterm%5D=artificial+intelligence
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
+  feed_url: https://www.federalregister.gov/api/v1/documents.rss?conditions%5Bterm%5D=artificial+intelligence
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -573,8 +673,10 @@ sources:
 - id: SRC-051
   name: FTC
   domain: ftc.gov
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: high
   citation_allowed: 'yes'
@@ -585,16 +687,19 @@ sources:
   domain: cisa.gov
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: Primary U.S. cyber alerts, guidance, and AI-security materials.
+  notes: Primary U.S. cyber alerts, guidance, and AI-security materials. Not in authoritative tier list; no tier assigned.
 - id: SRC-053
   name: White House
   domain: whitehouse.gov
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
@@ -603,8 +708,10 @@ sources:
 - id: SRC-054
   name: European AI Office
   domain: digital-strategy.ec.europa.eu
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -615,16 +722,19 @@ sources:
   domain: ec.europa.eu
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: Official EU AI, competition, digital-policy, and enforcement developments.
+  notes: Official EU AI, competition, digital-policy, and enforcement developments. Not in authoritative tier list; no tier assigned.
 - id: SRC-056
   name: Council of the European Union
   domain: consilium.europa.eu
+  tier: 4
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
@@ -633,8 +743,10 @@ sources:
 - id: SRC-057
   name: UK AI Security Institute
   domain: aisi.gov.uk
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
@@ -643,30 +755,564 @@ sources:
 - id: SRC-058
   name: U.S. Department of Justice
   domain: justice.gov
+  tier: 1
   category: Government / Regulation
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
   reliability: high
-  notes: Official AI-related enforcement, competition, cyber, and national-security actions.
+  notes: Official AI-related enforcement, competition, cyber, and national-security actions. See also SRC-066 for the DOJ Antitrust division.
 - id: SRC-059
   name: CSET
   domain: cset.georgetown.edu
   category: Policy / Governance
   role: Primary Source
+  access: free
   enabled: true
   priority: medium
   citation_allowed: 'yes'
   reliability: high
-  notes: High-quality research on AI security, geopolitics, talent, and policy.
+  notes: High-quality research on AI security, geopolitics, talent, and policy. Not in authoritative tier list; no tier assigned.
 - id: SRC-060
   name: AI Now Institute
   domain: ainowinstitute.org
   category: Policy / Governance
   role: Primary Source
+  access: free
   enabled: true
   priority: low
   citation_allowed: 'yes'
   reliability: high
-  notes: Primary policy research and advocacy on AI power, accountability, and societal impact.
+  notes: Primary policy research and advocacy on AI power, accountability, and societal impact. Not in authoritative tier list; no tier assigned.
+- id: SRC-061
+  name: arXiv
+  domain: arxiv.org
+  tier: 1
+  category: Research / Academic
+  role: Primary Source
+  access: free
+  feed_url: https://export.arxiv.org/rss/cs.LG
+  enabled: true
+  priority: high
+  anchor: true
+  citation_allowed: conditional
+  reliability: medium
+  notes: Fast research discovery (cs.LG feed); papers are primary research but may be unreviewed preprints.
+# ---------------------------------------------------------------------------
+# Tier 1 — newly added sources
+# ---------------------------------------------------------------------------
+- id: SRC-062
+  name: SemiAnalysis
+  domain: semianalysis.com
+  tier: 1
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: high
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Original technical analysis and reporting on AI hardware, semiconductors, and compute. Has both free and paid Substack tiers.
+- id: SRC-063
+  name: Stability AI
+  domain: stability.ai
+  tier: 1
+  category: Primary AI Lab / Company
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: medium
+  notes: Primary source for Stable Diffusion and related generative AI model announcements.
+- id: SRC-064
+  name: Apple Machine Learning Research
+  domain: machinelearning.apple.com
+  tier: 1
+  category: Primary AI Lab / Company
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Apple ML research publications and on-device AI model work.
+- id: SRC-065
+  name: U.S. Copyright Office
+  domain: copyright.gov
+  tier: 1
+  category: Government / Regulation
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for copyright policy, AI-authorship rulings, and related guidance affecting AI-generated content.
+- id: SRC-066
+  name: U.S. DOJ Antitrust Division
+  domain: justice.gov
+  tier: 1
+  category: Government / Regulation
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for DOJ Antitrust Division enforcement actions and policy relevant to AI competition. Separate from SRC-058 (general DOJ).
+- id: SRC-067
+  name: SEC EDGAR
+  domain: sec.gov
+  tier: 1
+  category: Government / Regulation
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for AI-related public company filings, disclosures, and SEC enforcement.
+# ---------------------------------------------------------------------------
+# Tier 2 — newly added sources
+# ---------------------------------------------------------------------------
+- id: SRC-068
+  name: The Register
+  domain: theregister.com
+  tier: 2
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong enterprise tech and AI reporting with a skeptical editorial voice.
+- id: SRC-069
+  name: EE Times
+  domain: eetimes.com
+  tier: 2
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Electronics and semiconductor engineering reporting; relevant for AI chip and hardware stories.
+- id: SRC-070
+  name: Nature Machine Intelligence
+  domain: nature.com
+  tier: 2
+  category: Research / Academic
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Peer-reviewed AI research journal; high credibility but paywalled. Cite for landmark papers.
+- id: SRC-071
+  name: Science Robotics
+  domain: science.org
+  tier: 2
+  category: Research / Academic
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Peer-reviewed robotics and embodied AI journal; paywalled.
+- id: SRC-072
+  name: The Decoder
+  domain: the-decoder.com
+  tier: 2
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Independent AI news reporting; particularly strong on European AI and generative models.
+- id: SRC-073
+  name: Semafor
+  domain: semafor.com
+  tier: 2
+  category: General News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Original reporting on AI business, policy, and industry; strong sourcing transparency.
+- id: SRC-074
+  name: Rest of World
+  domain: restofworld.org
+  tier: 2
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Non-Western AI technology reporting; useful for global AI deployment and policy coverage.
+- id: SRC-075
+  name: UN News
+  domain: news.un.org
+  tier: 2
+  category: Government / Regulation
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: medium
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Official UN reporting on AI governance, safety frameworks, and international cooperation.
+# ---------------------------------------------------------------------------
+# Tier 3 — newly added sources (configured, not fetched on regular runs)
+# ---------------------------------------------------------------------------
+- id: SRC-076
+  name: Import AI
+  domain: importai.substack.com
+  tier: 3
+  category: AI News / Analysis
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: high
+  notes: Weekly AI research and policy newsletter by Jack Clark; strong research discovery signal.
+- id: SRC-077
+  name: Interconnects
+  domain: interconnects.ai
+  tier: 3
+  category: AI News / Analysis
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: high
+  notes: Technical ML research and training analysis newsletter; Substack free and paid tiers.
+- id: SRC-078
+  name: Latent Space
+  domain: latent.space
+  tier: 3
+  category: AI News / Analysis
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: high
+  notes: AI engineering and research newsletter/podcast; practitioner-focused with strong primary sourcing.
+- id: SRC-079
+  name: Platformer
+  domain: platformer.news
+  tier: 3
+  category: Technology News
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Original reporting on AI platforms, social media, and tech policy; Substack with free and paid tiers.
+- id: SRC-080
+  name: Stratechery
+  domain: stratechery.com
+  tier: 3
+  category: Technology News
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Deep AI industry analysis by Ben Thompson; mostly paywalled subscription.
+- id: SRC-081
+  name: One Useful Thing
+  domain: oneusefulthing.org
+  tier: 3
+  category: AI News / Analysis
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Applied AI research and usage analysis by Ethan Mollick; free Substack.
+- id: SRC-082
+  name: The Batch
+  domain: deeplearning.ai
+  tier: 3
+  category: AI News / Discovery
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'no'
+  reliability: high
+  notes: Weekly AI news digest by DeepLearning.AI; discovery only, resolve to original sources.
+- id: SRC-083
+  name: Ahead of AI
+  domain: ahead-of-ai.com
+  tier: 3
+  category: AI News / Analysis
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: high
+  notes: ML and AI research analysis newsletter by Sebastian Raschka; Substack free and paid.
+- id: SRC-084
+  name: Last Week in AI
+  domain: lastweekin.ai
+  tier: 3
+  category: AI News / Discovery
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Weekly AI news roundup; discovery only, resolve to original sources.
+- id: SRC-085
+  name: The Economist Technology
+  domain: economist.com
+  tier: 3
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: High-quality technology and AI reporting from The Economist; predominantly paywalled.
+# ---------------------------------------------------------------------------
+# Tier 4 — newly added sources (configured, not fetched on regular runs)
+# ---------------------------------------------------------------------------
+- id: SRC-086
+  name: AI Daily Brief
+  domain: aidailybrief.com
+  tier: 4
+  category: AI News / Discovery
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'no'
+  reliability: medium
+  notes: Daily AI news briefing; discovery only, resolve to original sources.
+- id: SRC-087
+  name: MarkTechPost
+  domain: marktechpost.com
+  tier: 4
+  category: Technology News
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: medium
+  notes: AI and ML research summary publication; mixed original and aggregated content.
+- id: SRC-088
+  name: Synced Review
+  domain: syncedreview.com
+  tier: 4
+  category: Technology News
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: medium
+  notes: AI research news coverage; mixed original and aggregated; Chinese AI market context.
+- id: SRC-089
+  name: Artificial Intelligence News
+  domain: artificialintelligence-news.com
+  tier: 4
+  category: Technology News
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'no'
+  reliability: medium
+  notes: General AI news coverage; discovery only.
+- id: SRC-090
+  name: AI Business
+  domain: aibusiness.com
+  tier: 4
+  category: Technology News
+  role: Discovery Only
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: conditional
+  reliability: medium
+  notes: Enterprise AI business news; mixed original and aggregated content.
+- id: SRC-091
+  name: Engadget
+  domain: engadget.com
+  tier: 4
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: medium
+  notes: Consumer technology reporting; AI coverage focuses on products and devices.
+- id: SRC-092
+  name: Gizmodo
+  domain: gizmodo.com
+  tier: 4
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: medium
+  notes: Consumer technology and AI reporting; verify factual claims before citing.
+- id: SRC-093
+  name: ZDNET
+  domain: zdnet.com
+  tier: 4
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: medium
+  notes: Enterprise technology and AI reporting; mixed reporting and commentary.
+- id: SRC-094
+  name: The Guardian
+  domain: theguardian.com
+  tier: 4
+  category: General News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Investigative AI and technology reporting; strong on AI ethics, labor, and societal impact.
+- id: SRC-095
+  name: South China Morning Post
+  domain: scmp.com
+  tier: 4
+  category: General News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong coverage of Chinese AI industry and policy; some metered content.
+- id: SRC-096
+  name: Nikkei Asia
+  domain: asia.nikkei.com
+  tier: 4
+  category: General News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Strong Asia-Pacific AI industry reporting; paywalled.
+- id: SRC-097
+  name: Caixin Global
+  domain: caixinglobal.com
+  tier: 4
+  category: General News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Chinese business and financial journalism including AI; paywalled.
+- id: SRC-098
+  name: 36Kr
+  domain: 36kr.com
+  tier: 4
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: medium
+  notes: Chinese technology startup and AI news; primarily in Chinese, verify translations.
+- id: SRC-099
+  name: Allen Institute for AI
+  domain: allenai.org
+  tier: 4
+  category: Research / Academic
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for AI2 open research, including Semantic Scholar and OLMo.
+- id: SRC-100
+  name: Berkeley BAIR
+  domain: bair.berkeley.edu
+  tier: 4
+  category: Research / Academic
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for Berkeley AI Research lab publications and blog posts.
+- id: SRC-101
+  name: MIT CSAIL
+  domain: csail.mit.edu
+  tier: 4
+  category: Research / Academic
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for MIT Computer Science and AI Lab research.
+- id: SRC-102
+  name: Epoch AI
+  domain: epochai.org
+  tier: 4
+  category: Research / Academic
+  role: Primary Source
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Primary source for AI compute trends, training data, and capability forecasting research.
+- id: SRC-103
+  name: Heise
+  domain: heise.de
+  tier: 4
+  category: Technology News
+  role: Original Reporting
+  access: unknown
+  enabled: true
+  priority: low
+  citation_allowed: 'yes'
+  reliability: high
+  notes: Major German-language technology publication; strong AI and regulatory coverage in European context. Some content paywalled.

@@ -32,6 +32,8 @@ _SOURCE = {
     "name": "Test Source",
     "domain": "example.com",
     "priority": "high",
+    "tier": 1,
+    "access": "free",
     "role": "Original Reporting",
     "citation_allowed": "yes",
     "reliability": "high",
@@ -449,6 +451,120 @@ class TestExactURLDedup(unittest.TestCase):
         kept, dropped = ingest.dedup_by_url(items)
         self.assertEqual(dropped, 0)
         self.assertEqual(len(kept), len(items))
+
+
+# ---------------------------------------------------------------------------
+# 10. Registry loading — tier-based filtering
+# ---------------------------------------------------------------------------
+
+def _make_registry_yaml(sources: list[dict]) -> str:
+    import yaml as _yaml
+    return _yaml.dump({"sources": sources})
+
+
+class TestRegistryLoading(unittest.TestCase):
+
+    def _write_registry(self, tmpdir, sources):
+        import yaml as _yaml
+        p = Path(tmpdir) / "ainwa-discovery.yml"
+        p.write_text(_yaml.dump({"sources": sources}), encoding="utf-8")
+        return p
+
+    def _make_src(self, **overrides):
+        base = {
+            "id": "SRC-T01", "name": "Test", "domain": "test.com",
+            "priority": "high", "tier": 1, "access": "free",
+            "role": "Original Reporting", "citation_allowed": "yes",
+            "reliability": "high", "enabled": True, "feed_url": "https://test.com/feed",
+        }
+        base.update(overrides)
+        return base
+
+    def test_tier1_sources_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_registry(d, [self._make_src(tier=1)])
+            result = ingest.load_registry(p)
+        self.assertEqual(len(result), 1)
+
+    def test_tier2_sources_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_registry(d, [self._make_src(tier=2)])
+            result = ingest.load_registry(p)
+        self.assertEqual(len(result), 1)
+
+    def test_tier3_sources_not_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_registry(d, [self._make_src(tier=3)])
+            result = ingest.load_registry(p)
+        self.assertEqual(result, [])
+
+    def test_tier4_sources_not_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_registry(d, [self._make_src(tier=4)])
+            result = ingest.load_registry(p)
+        self.assertEqual(result, [])
+
+    def test_disabled_source_not_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_registry(d, [self._make_src(tier=1, enabled=False)])
+            result = ingest.load_registry(p)
+        self.assertEqual(result, [])
+
+    def test_source_without_tier_not_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            src = self._make_src()
+            src.pop("tier")
+            p = self._write_registry(d, [src])
+            result = ingest.load_registry(p)
+        self.assertEqual(result, [])
+
+    def test_tier1_and_tier3_only_tier1_loaded(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            p = self._write_registry(d, [
+                self._make_src(id="SRC-T01", tier=1),
+                self._make_src(id="SRC-T03", tier=3),
+            ])
+            result = ingest.load_registry(p)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["id"], "SRC-T01")
+
+
+# ---------------------------------------------------------------------------
+# 11. Source fields — tier and access propagation
+# ---------------------------------------------------------------------------
+
+class TestSourceFields(unittest.TestCase):
+
+    def test_source_tier_propagated(self):
+        fields = ingest._source_fields(
+            _SOURCE, "https://test.com/feed", "2026-08-17T00:00:00Z", "rss"
+        )
+        self.assertEqual(fields["source_tier"], 1)
+
+    def test_source_access_propagated(self):
+        fields = ingest._source_fields(
+            _SOURCE, "https://test.com/feed", "2026-08-17T00:00:00Z", "rss"
+        )
+        self.assertEqual(fields["source_access"], "free")
+
+    def test_source_tier_none_when_absent(self):
+        src = dict(_SOURCE)
+        src.pop("tier", None)
+        fields = ingest._source_fields(src, "https://test.com/feed", "2026-08-17T00:00:00Z", "rss")
+        self.assertIsNone(fields["source_tier"])
+
+    def test_source_access_unknown_when_absent(self):
+        src = dict(_SOURCE)
+        src.pop("access", None)
+        fields = ingest._source_fields(src, "https://test.com/feed", "2026-08-17T00:00:00Z", "rss")
+        self.assertEqual(fields["source_access"], "unknown")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """AINWA Discovery Ingestion v1
 
-Reads enabled High-priority sources from ainwa-discovery.yml, fetches their
+Reads enabled Tier 1 and Tier 2 sources from ainwa-discovery.yml, fetches their
 RSS/Atom feeds, and writes normalized raw discovery items to
 data/raw-discovery.json.
 
@@ -242,6 +242,8 @@ def _source_fields(source: dict, feed_url: str, fetched_at: str, method: str) ->
         "source_domain": source["domain"],
         "source_priority": source["priority"],
         "source_role": source.get("role", ""),
+        "source_tier": source.get("tier"),
+        "source_access": source.get("access", "unknown"),
         "source_citation_allowed": str(source.get("citation_allowed", "no")),
         "source_reliability": source.get("reliability", ""),
         "fetch_method": method,
@@ -381,14 +383,14 @@ def dedup_by_url(items: list[dict]) -> tuple[list[dict], int]:
 # ---------------------------------------------------------------------------
 
 def load_registry(path: Path) -> list[dict]:
-    """Return all enabled High-priority sources from ainwa-discovery.yml."""
+    """Return all enabled Tier 1 and Tier 2 sources from ainwa-discovery.yml."""
     with path.open("r", encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
     return [
         s
         for s in data.get("sources", [])
         if s.get("enabled") is True
-        and str(s.get("priority", "")).lower() == "high"
+        and s.get("tier") in (1, 2)
     ]
 
 
@@ -422,7 +424,7 @@ def run_ingestion(registry_path: Path, output_path: Path) -> dict:
     seen_urls: set[str] = set()  # cross-source exact-URL dedup within this run
 
     print(f"[AINWA] run_id={run_id}")
-    print(f"[AINWA] {len(sources)} enabled High-priority sources in registry")
+    print(f"[AINWA] {len(sources)} enabled Tier 1/2 sources in registry")
 
     for src in sources:
         src_id = src.get("id", "?")
@@ -481,7 +483,7 @@ def run_ingestion(registry_path: Path, output_path: Path) -> dict:
     output = {
         "version": 1,
         "run_id": run_id,
-        "priority_filter": "high",
+        "tier_filter": "1,2",
         "item_count": len(all_items),
         "error_count": len(errors),
         "skipped_count": len(skipped),

@@ -41,7 +41,8 @@ import generate
 
 def _item(item_id="raw-SRC-001-aabbccdd", source_name="Example News",
           source_role="Original Reporting", source_citation_allowed="yes",
-          source_reliability="high", source_priority="high", age_hours=2.0,
+          source_reliability="high", source_priority="high",
+          source_tier=1, source_access="free", age_hours=2.0,
           item_title="Example AI story title",
           canonical_url="https://example.com/story",
           fetched_at="2026-08-13T19:53:22Z") -> dict:
@@ -52,6 +53,8 @@ def _item(item_id="raw-SRC-001-aabbccdd", source_name="Example News",
         "source_citation_allowed": source_citation_allowed,
         "source_reliability": source_reliability,
         "source_priority": source_priority,
+        "source_tier": source_tier,
+        "source_access": source_access,
         "age_hours": age_hours,
         "item_title": item_title,
         "canonical_url": canonical_url,
@@ -852,11 +855,13 @@ class TestQueuedAt(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestScoring(unittest.TestCase):
-    """_score_item returns deterministic scores based on role, priority, recency, citation."""
+    """_score_item returns deterministic scores based on role, tier, access, recency, citation."""
 
-    def _si(self, role="Original Reporting", priority="high", age_hours=0.0, citation="yes"):
-        return _item(source_role=role, source_priority=priority, age_hours=age_hours,
-                     source_citation_allowed=citation)
+    def _si(self, role="Original Reporting", priority="high", tier=1, access="free",
+            age_hours=0.0, citation="yes"):
+        return _item(source_role=role, source_priority=priority,
+                     source_tier=tier, source_access=access,
+                     age_hours=age_hours, source_citation_allowed=citation)
 
     def test_original_reporting_scores_above_discovery_only(self):
         self.assertGreater(
@@ -870,10 +875,10 @@ class TestScoring(unittest.TestCase):
             generate._score_item(self._si(role="Discovery Only")),
         )
 
-    def test_high_priority_scores_above_low(self):
+    def test_tier1_scores_above_tier2(self):
         self.assertGreater(
-            generate._score_item(self._si(priority="high")),
-            generate._score_item(self._si(priority="low")),
+            generate._score_item(self._si(tier=1)),
+            generate._score_item(self._si(tier=2)),
         )
 
     def test_fresh_item_scores_above_stale(self):
@@ -898,6 +903,67 @@ class TestScoring(unittest.TestCase):
         score = generate._score_item(self._si())
         self.assertGreaterEqual(score, 0.0)
         self.assertLessEqual(score, 1.0)
+
+
+class TestTierScoring(unittest.TestCase):
+    """Tier component of _score_item."""
+
+    def _si(self, tier):
+        return _item(source_tier=tier, age_hours=0.0)
+
+    def test_tier1_above_tier2(self):
+        self.assertGreater(
+            generate._score_item(self._si(1)),
+            generate._score_item(self._si(2)),
+        )
+
+    def test_tier2_above_tier3(self):
+        self.assertGreater(
+            generate._score_item(self._si(2)),
+            generate._score_item(self._si(3)),
+        )
+
+    def test_tier3_above_tier4(self):
+        self.assertGreater(
+            generate._score_item(self._si(3)),
+            generate._score_item(self._si(4)),
+        )
+
+    def test_none_tier_treated_as_default(self):
+        score_none = generate._score_item(self._si(None))
+        score_tier3 = generate._score_item(self._si(3))
+        self.assertEqual(score_none, score_tier3)
+
+
+class TestAccessScoring(unittest.TestCase):
+    """Access component of _score_item."""
+
+    def _si(self, access):
+        return _item(source_access=access, age_hours=0.0)
+
+    def test_free_above_mixed(self):
+        self.assertGreater(
+            generate._score_item(self._si("free")),
+            generate._score_item(self._si("mixed")),
+        )
+
+    def test_mixed_above_paywalled(self):
+        self.assertGreater(
+            generate._score_item(self._si("mixed")),
+            generate._score_item(self._si("paywalled")),
+        )
+
+    def test_unknown_above_paywalled(self):
+        self.assertGreater(
+            generate._score_item(self._si("unknown")),
+            generate._score_item(self._si("paywalled")),
+        )
+
+    def test_free_above_unknown(self):
+        self.assertGreater(
+            generate._score_item(self._si("free")),
+            generate._score_item(self._si("unknown")),
+        )
 
 
 # ---------------------------------------------------------------------------

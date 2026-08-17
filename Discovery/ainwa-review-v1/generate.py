@@ -182,13 +182,16 @@ def _score_item(item: dict) -> float:
     role = item.get("source_role", "")
     role_score = {
         "Original Reporting": 1.00,
-        "Primary Source": 0.85,
+        "Primary Source": 0.90,
         "Mixed": 0.55,
         "Discovery Only": 0.25,
     }.get(role, 0.20)
 
-    priority = item.get("source_priority", "")
-    priority_score = {"high": 1.00, "medium": 0.55, "low": 0.25}.get(priority, 0.25)
+    tier = item.get("source_tier")
+    tier_score = {1: 1.00, 2: 0.70, 3: 0.30, 4: 0.10}.get(tier, 0.30)
+
+    access = item.get("source_access", "unknown")
+    access_score = {"free": 1.00, "unknown": 0.80, "mixed": 0.60, "paywalled": 0.40}.get(access, 0.80)
 
     age_hours = item.get("age_hours")
     try:
@@ -200,9 +203,10 @@ def _score_item(item: dict) -> float:
     citation_score = {"yes": 1.00, "conditional": 0.60}.get(citation, 0.00)
 
     raw = (
-        0.40 * role_score
-        + 0.20 * priority_score
-        + 0.30 * recency_score
+        0.30 * role_score
+        + 0.20 * tier_score
+        + 0.15 * access_score
+        + 0.25 * recency_score
         + 0.10 * citation_score
     )
     return min(1.0, raw)
