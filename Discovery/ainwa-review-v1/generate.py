@@ -36,6 +36,7 @@ APPROVED_FILE = DATA_DIR / "approved-queue.json"
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
 
 MAX_CANDIDATES = 17
+RANKED_RESPONSE_LIMIT = 30  # max stories Claude may return; post-processing caps at MAX_CANDIDATES
 CATEGORIES = ("Models", "Research", "Security", "Governance", "Business", "Infrastructure", "Applications")
 
 # Sources that may contribute at most one story to the shortlist.
@@ -167,21 +168,25 @@ Candidates:
 
 
 # ---------------------------------------------------------------------------
-# Anchor cap enforcement (hard, post-Claude)
+# Anchor-cap walk (deterministic post-processing reducer)
 # ---------------------------------------------------------------------------
 
-def _enforce_anchor_cap(selections: list[dict], item_lookup: dict[int, dict]) -> list[dict]:
-    """Deterministically drop extra stories from the same anchor source.
+def _apply_anchor_cap_walk(
+    ranked: list[dict],
+    item_lookup: dict[int, dict],
+) -> list[dict]:
+    """Walk ranked in order, enforcing anchor cap and MAX_CANDIDATES limit.
 
-    Claude is asked to respect the one-per-anchor rule in its prompt, but this
-    function hard-enforces it regardless. Extra anchor stories are dropped
-    without replacement — no weak filler is added.
-
-    item_lookup is keyed by 1-based sequence integer (matching prompt indices).
+    Accepts the first qualifying story per anchor source; skips subsequent
+    stories from the same anchor source without replacement. Non-anchor stories
+    are accepted normally. Stops when MAX_CANDIDATES is reached or the list
+    is exhausted. item_lookup is keyed by 1-based sequence integer.
     """
+    accepted: list[dict] = []
     anchor_seen: set[str] = set()
-    result: list[dict] = []
-    for sel in selections:
+    for sel in ranked:
+        if len(accepted) >= MAX_CANDIDATES:
+            break
         try:
             seq = int(sel.get("item_id") or 0)
         except (TypeError, ValueError):
@@ -190,54 +195,43 @@ def _enforce_anchor_cap(selections: list[dict], item_lookup: dict[int, dict]) ->
         if src_name in ANCHOR_SOURCES:
             if src_name in anchor_seen:
                 print(
-                    f"[AINWA] Anchor cap: dropping extra {src_name!r} selection (index {seq}).",
+                    f"[AINWA] Anchor walk: skipping duplicate {src_name!r} (index {seq}).",
                     file=sys.stderr,
                 )
                 continue
             anchor_seen.add(src_name)
-        result.append(sel)
-    return result
+        accepted.append(sel)
+    return accepted
 
 
 
 # ---------------------------------------------------------------------------
-# Structured response parser
+# Flat ranked-array response parser
 # ---------------------------------------------------------------------------
 
 def _parse_claude_response(
     raw: str,
     item_lookup: dict[int, dict],
 ) -> list[dict]:
-    """Parse the structured anchor-slot + non-anchor response into a flat ordered list.
+    """Parse Claude's flat ranked-array response into a validated list.
 
-    Expected format:
-      {
-        "anchor_slots": {"TechCrunch": <story>|null, ...},  # one key per anchor source
-        "non_anchor_stories": [<story>, ...],
-        "ranking": [<item_id int>, ...]  # all selected ids in priority order
-      }
+    Expected format: a JSON array of up to RANKED_RESPONSE_LIMIT story objects,
+    each with an integer item_id (1-based prompt sequence index), in priority order.
 
-    Returns story dicts with integer item_id fields, ordered by ranking.
-    Non-integer or out-of-range item_ids are silently dropped (fail closed).
+    Returns validated story dicts with integer item_id fields preserving Claude's
+    ranking order. Non-integer or out-of-range item_ids fail closed (dropped).
+    Duplicate indices are deduplicated (first occurrence kept).
     """
     data = json.loads(_strip_code_fence(raw))
-    if not isinstance(data, dict):
-        raise ValueError("Claude response must be a JSON object, not a list or other type")
+    if not isinstance(data, list):
+        raise ValueError("Claude response must be a JSON array")
 
-    all_selections: dict[int, dict] = {}
-
-    for src_name, story in (data.get("anchor_slots") or {}).items():
-        if story is None:
-            continue
-        if src_name not in ANCHOR_SOURCES:
-            print(
-                f"[AINWA] WARNING: anchor_slots contains unknown source {src_name!r}; skipping.",
-                file=sys.stderr,
-            )
-            continue
+    result: list[dict] = []
+    seen_seqs: set[int] = set()
+    for i, story in enumerate(data):
         if not isinstance(story, dict):
             print(
-                f"[AINWA] WARNING: anchor slot {src_name!r} is not an object; skipping.",
+                f"[AINWA] WARNING: ranked_stories[{i}] is not an object; skipping.",
                 file=sys.stderr,
             )
             continue
@@ -245,83 +239,27 @@ def _parse_claude_response(
             seq = int(story.get("item_id") or 0)
         except (TypeError, ValueError):
             print(
-                f"[AINWA] WARNING: non-integer item_id in anchor slot {src_name!r}; skipping.",
+                f"[AINWA] WARNING: non-integer item_id at position {i}; skipping.",
                 file=sys.stderr,
             )
             continue
         if seq not in item_lookup:
             print(
-                f"[AINWA] WARNING: out-of-range index {seq} in anchor slot {src_name!r}; skipping.",
+                f"[AINWA] WARNING: out-of-range index {seq} at position {i}; skipping.",
                 file=sys.stderr,
             )
             continue
-        actual_src = item_lookup[seq].get("source_name", "")
-        if actual_src != src_name:
+        if seq in seen_seqs:
             print(
-                f"[AINWA] WARNING: anchor slot {src_name!r} contains index {seq} "
-                f"which maps to source {actual_src!r}; rejecting.",
+                f"[AINWA] WARNING: duplicate index {seq} at position {i}; skipping.",
                 file=sys.stderr,
             )
             continue
+        seen_seqs.add(seq)
         story = dict(story)
         story["item_id"] = seq
-        all_selections[seq] = story
-
-    for i, story in enumerate(data.get("non_anchor_stories") or []):
-        if not isinstance(story, dict):
-            print(
-                f"[AINWA] WARNING: non_anchor_stories[{i}] is not an object; skipping.",
-                file=sys.stderr,
-            )
-            continue
-        try:
-            seq = int(story.get("item_id") or 0)
-        except (TypeError, ValueError):
-            print(
-                f"[AINWA] WARNING: non-integer item_id in non_anchor_stories[{i}]; skipping.",
-                file=sys.stderr,
-            )
-            continue
-        if seq not in item_lookup:
-            print(
-                f"[AINWA] WARNING: out-of-range index {seq} in non_anchor_stories[{i}]; skipping.",
-                file=sys.stderr,
-            )
-            continue
-        actual_src = item_lookup[seq].get("source_name", "")
-        if actual_src in ANCHOR_SOURCES:
-            print(
-                f"[AINWA] WARNING: non_anchor_stories[{i}] contains anchor-source item "
-                f"(index {seq}, {actual_src!r}); rejecting.",
-                file=sys.stderr,
-            )
-            continue
-        if seq in all_selections:
-            print(
-                f"[AINWA] WARNING: duplicate item_id {seq} in non_anchor_stories[{i}]; skipping.",
-                file=sys.stderr,
-            )
-            continue
-        story = dict(story)
-        story["item_id"] = seq
-        all_selections[seq] = story
-
-    ordered: list[dict] = []
-    seen: set[int] = set()
-    for val in (data.get("ranking") or []):
-        try:
-            seq = int(val)
-        except (TypeError, ValueError):
-            continue
-        if seq in all_selections and seq not in seen:
-            ordered.append(all_selections[seq])
-            seen.add(seq)
-
-    for seq, story in all_selections.items():
-        if seq not in seen:
-            ordered.append(story)
-
-    return ordered[:MAX_CANDIDATES]
+        result.append(story)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +278,7 @@ def _carryover_candidates(existing: list[dict], cutoff_ts: datetime) -> list[dic
     for c in existing:
         if c.get("status") in terminal:
             continue
-        raw_ts = c.get("discovered_at") or ""
+        raw_ts = c.get("queued_at") or c.get("discovered_at") or ""
         try:
             discovered = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
         except (ValueError, TypeError):
@@ -360,11 +298,10 @@ def build_selection_prompt(
     """Build the Claude selection prompt and return (eligible_items, prompt_text).
 
     Candidates are presented in labeled sections — one per anchor source, then a
-    non-anchor section — so the section boundary makes the correct response bucket
-    unambiguous to Claude. Global 1-based integer indices are assigned across the
-    reordered list (anchor sections first, then non-anchor) and are the only stable
-    identifiers given to Claude. item_lookup in main() is built from the returned
-    eligible list so all indices remain deterministic.
+    non-anchor section — for editorial clarity. Global 1-based integer indices are
+    assigned across the reordered list (anchor sections first, then non-anchor).
+    Claude returns a single flat ranked array; post-processing (_apply_anchor_cap_walk)
+    enforces the one-per-anchor limit and the MAX_CANDIDATES cap deterministically.
     """
     eligible = [i for i in items if i.get("canonical_url") not in excluded_urls]
     categories_str = ", ".join(CATEGORIES)
@@ -410,34 +347,29 @@ def build_selection_prompt(
     for src in anchor_order:
         src_items = by_anchor[src]
         header = (
-            f'=== {src} [ANCHOR] ===\n'
-            f'Select at most one. Place your pick in anchor_slots["{src}"]. '
-            f'Use only indices from this section.'
+            f"=== {src} [ANCHOR] ===\n"
+            f"One slot per anchor source. Rank your best {src} pick highest — "
+            f"only the first {src} story in your ranked list enters the shortlist."
         )
         body = (
             "\n".join(_line(it) for it in src_items)
             if src_items
-            else "(no eligible candidates this run — set slot to null)"
+            else "(no eligible candidates this run)"
         )
         blocks.append(f"{header}\n{body}")
 
     # Non-anchor section.
-    non_anchor_header = (
-        "=== Non-anchor candidates ===\n"
-        "Place your picks in non_anchor_stories. Use only indices from this section."
-    )
     non_anchor_body = (
         "\n".join(_line(it) for it in non_anchor)
         if non_anchor
         else "(no eligible candidates this run)"
     )
-    blocks.append(f"{non_anchor_header}\n{non_anchor_body}")
+    blocks.append(f"=== Non-anchor candidates ===\n{non_anchor_body}")
 
-    anchor_slots_example = ",\n".join(f'    "{src}": null' for src in anchor_order)
     candidates_text = "\n\n".join(blocks)
 
     prompt = f"""You are ANWU, the AInetWatch editorial AI. Select the best AI-industry stories \
-(up to {MAX_CANDIDATES} total) from the list below for today's wire.
+from the list below for today's wire.
 
 Selection criteria (in order of importance):
 1. Importance and novelty to the AI industry
@@ -449,18 +381,16 @@ Selection criteria (in order of importance):
 Response rules:
 - Candidates are divided into labeled sections below. Each integer index is globally unique \
 across all sections and maps to exactly one feed record.
-- For each anchor section (Reuters, The Information, TechCrunch, BleepingComputer, arXiv): \
-select at most one story and place it in the matching anchor_slots key using only an index \
-from that section. If no story in a section qualifies, set its slot to null.
-- For Non-anchor candidates: place your selections in non_anchor_stories using only indices \
-from that section.
-- Using an index from the wrong section will cause the selection to be silently rejected \
-and it will not appear in the output.
+- Rank up to {RANKED_RESPONSE_LIMIT} stories in priority order. Post-processing will accept \
+the first qualifying story per anchor source and fill remaining slots with non-anchor stories \
+until the shortlist reaches {MAX_CANDIDATES}.
+- For anchor sources (Reuters, The Information, TechCrunch, BleepingComputer, arXiv): you may \
+rank multiple stories from the same anchor source — only the first one in your list will enter \
+the shortlist. Rank your best anchor pick for each source highest.
 - Techmeme is Discovery Only and is never an anchor.
-- ranking lists the item_id of every accepted selection in priority order across all sections.
-- Do not fill weak stories merely to reach {MAX_CANDIDATES}. Quality over count.
+- Do not pad with weak stories merely to reach {RANKED_RESPONSE_LIMIT}. Quality over count.
 
-Story fields (same for anchor slots and non-anchor stories):
+Story fields:
 - item_id: the global integer index from the candidate list (e.g. 3)
 - brief_headline: AInetWatch-style in ALL CAPS, ≤12 words, punchy and factual
 - public_summary: exactly 3 reader-facing bullets — (1) what happened, (2) why it matters, \
@@ -472,28 +402,20 @@ concerns, corroboration or duplication context. Never published.
 - top_story: true for the single most important story only, false for all others
 - developing: true only if the story is clearly unresolved or actively breaking
 
-Return ONLY a JSON object with this exact structure, no other text:
-{{
-  "anchor_slots": {{
-{anchor_slots_example}
-  }},
-  "non_anchor_stories": [
-    {{
-      "item_id": 42,
-      "brief_headline": "ALL CAPS HEADLINE HERE",
-      "public_summary": ["What happened.", "Why it matters.", "What changes or who is affected."],
-      "editorial_notes": "Source quality and verification notes for the reviewer.",
-      "category": "Models",
-      "priority": "High",
-      "top_story": false,
-      "developing": false
-    }}
-  ],
-  "ranking": [5, 42, 12]
-}}
-
-ranking must list the item_id of EVERY selected story in priority order, highest first. \
-Total ranking length must not exceed {MAX_CANDIDATES}.
+Return ONLY a JSON array of up to {RANKED_RESPONSE_LIMIT} story objects, ranked \
+highest-priority first, no other text:
+[
+  {{
+    "item_id": 42,
+    "brief_headline": "ALL CAPS HEADLINE HERE",
+    "public_summary": ["What happened.", "Why it matters.", "What changes or who is affected."],
+    "editorial_notes": "Source quality and verification notes for the reviewer.",
+    "category": "Models",
+    "priority": "High",
+    "top_story": false,
+    "developing": false
+  }}
+]
 
 Candidates:
 
@@ -598,6 +520,7 @@ def build_candidates(
                 "developing": bool(sel.get("developing", False)),
             },
             "advisory": advisory,
+            "queued_at": now_iso(),
             "discovered_at": item.get("fetched_at") or now_iso(),
         })
     return candidates
@@ -695,11 +618,10 @@ def main(argv=None):
         print(f"[AINWA] Raw:\n{raw_response}", file=sys.stderr)
         return 1
 
-    print(f"[AINWA] Claude selected {len(selections)} candidates.", file=sys.stderr)
+    print(f"[AINWA] Claude ranked {len(selections)} candidates.", file=sys.stderr)
 
-    # Hard-enforce anchor cap regardless of whether Claude respected the prompt rule.
-    selections = _enforce_anchor_cap(selections, item_lookup)
-    print(f"[AINWA] After anchor cap enforcement: {len(selections)} candidates.", file=sys.stderr)
+    selections = _apply_anchor_cap_walk(selections, item_lookup)
+    print(f"[AINWA] After anchor-cap walk: {len(selections)} candidates.", file=sys.stderr)
 
     # --- Build shortlist JSON for advisors ---
     # item_id here is the integer sequence number; advisors key their response by it.

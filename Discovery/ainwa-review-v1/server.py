@@ -491,7 +491,7 @@ class Handler(BaseHTTPRequestHandler):
                     status = c.get("status", "review")
                     if status in terminal_statuses:
                         continue
-                    raw_ts = c.get("discovered_at") or ""
+                    raw_ts = c.get("queued_at") or c.get("discovered_at") or ""
                     try:
                         disc_date = date.fromisoformat(raw_ts[:10])
                     except (ValueError, TypeError):
@@ -520,14 +520,17 @@ class Handler(BaseHTTPRequestHandler):
                     [c for c in banded if c.get("_band") == "current"],
                     key=_rank,
                 )
+                def _queue_ts(c):
+                    return c.get("queued_at") or c.get("discovered_at") or ""
+
                 carryover_g = sorted(
                     [c for c in banded if c.get("_band") == "carryover"],
-                    key=lambda c: (c.get("discovered_at") or "", _rank(c)),
+                    key=lambda c: (_queue_ts(c), _rank(c)),
                     reverse=True,
                 )
                 snoozed_g = sorted(
                     [c for c in banded if c.get("_band") == "snoozed"],
-                    key=lambda c: c.get("discovered_at") or "",
+                    key=_queue_ts,
                     reverse=True,
                 )
                 banded = current_g + carryover_g + snoozed_g

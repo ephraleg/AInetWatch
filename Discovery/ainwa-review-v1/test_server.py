@@ -21,6 +21,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -116,7 +117,7 @@ def make_candidate(cid, url="https://example.com/story", headline="Example origi
             "why_selected": "test",
             "duplicate_note": "",
         },
-        "discovered_at": "2026-08-13T00:00:00Z",
+        "discovered_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     if language is not _UNSET:
         c["language"] = language
@@ -466,7 +467,7 @@ def main():
     # --- 3-day carryover banding in /api/state ---
     tmp4 = Path(tempfile.mkdtemp(prefix="ainwa-test-band-"))
     data4 = tmp4 / "data"
-    from datetime import datetime, timezone, timedelta
+    from datetime import timedelta
     today_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT12:00:00Z")
     yesterday_str = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT12:00:00Z")
     old_str = (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%dT12:00:00Z")
@@ -514,6 +515,52 @@ def main():
         except subprocess.TimeoutExpired:
             proc4.kill()
         shutil.rmtree(tmp4, ignore_errors=True)
+
+    # --- queued_at banding: server uses queued_at over discovered_at ---
+    tmp5 = Path(tempfile.mkdtemp(prefix="ainwa-test-queuedat-"))
+    data5 = tmp5 / "data"
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    old_article_str = "2026-08-13T10:00:00Z"   # article ingestion date — always "old"
+    old_queued_str = (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    queued_candidates = [
+        # Old discovered_at, current queued_at → must appear as "current"
+        {**make_candidate("qa-current"), "discovered_at": old_article_str, "queued_at": now_str, "status": "review"},
+        # Old discovered_at, old queued_at → must age out
+        {**make_candidate("qa-aged"), "discovered_at": old_article_str, "queued_at": old_queued_str, "status": "review"},
+        # No queued_at, current discovered_at → backward-compat fallback, appears as "current"
+        {**make_candidate("qa-fallback"), "discovered_at": now_str, "status": "review"},
+    ]
+    seed(data5, candidates=queued_candidates, approved=[])
+    port5 = free_port()
+    base5 = f"http://127.0.0.1:{port5}"
+    proc5 = subprocess.Popen(
+        [sys.executable, str(SERVER), "--port", str(port5), "--data-dir", str(data5), "--no-open"],
+        cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        ready5 = wait_ready(base5)
+        check("queued_at test server starts", ready5)
+        if ready5:
+            status5, body5, _ = request("GET", "/api/state", base5)
+            check("queued_at /api/state returns 200", status5 == 200, f"{status5} {body5}")
+            candidates5 = (body5 or {}).get("candidates", [])
+            ids5 = [c["id"] for c in candidates5]
+            bands5 = {c["id"]: c.get("_band") for c in candidates5}
+
+            check("old article but current queued_at appears as current",
+                  bands5.get("qa-current") == "current", str(bands5))
+            check("old article with old queued_at ages out",
+                  "qa-aged" not in ids5, str(ids5))
+            check("no queued_at falls back to discovered_at (backward compat)",
+                  bands5.get("qa-fallback") == "current", str(bands5))
+    finally:
+        proc5.terminate()
+        try:
+            proc5.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc5.kill()
+        shutil.rmtree(tmp5, ignore_errors=True)
 
     finish()
 
