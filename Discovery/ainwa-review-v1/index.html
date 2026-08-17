@@ -38,7 +38,7 @@
 </style>
 </head>
 <body>
-<header><strong>AINWA REVIEW</strong><div class="meta" id="statusLine">Loading…</div></header>
+<header><strong>AINWA REVIEW</strong><button onclick="openManual()" style="border:1px solid var(--line);background:var(--panel);padding:6px 12px;border-radius:5px;font-weight:700;font-size:13px">Add Manual Candidate</button><div class="meta" id="statusLine">Loading…</div></header>
 <div class="shell">
   <aside><div class="queue-title">Candidate Queue · max 17</div><div id="queue"></div></aside>
   <main id="main"><div class="empty">Loading candidate queue…</div></main>
@@ -46,15 +46,20 @@
 <div class="toast" id="toast"></div>
 
 <dialog id="editDialog">
-  <div class="dialog-head">Edit & Approve</div>
+  <div class="dialog-head" id="editDialogHead">Edit &amp; Approve</div>
   <div class="dialog-body">
-    <label for="editHeadline">Headline</label><input id="editHeadline">
+    <div id="manualFields" style="display:none">
+      <label for="manualUrl">Article URL</label><input id="manualUrl" type="url" placeholder="https://…">
+      <label for="manualSource">Source Name</label><input id="manualSource" placeholder="e.g. The Verge">
+      <label for="manualOriginal">Original Headline</label><input id="manualOriginal">
+    </div>
+    <label for="editHeadline">AINWA Brief Headline</label><input id="editHeadline">
     <label for="editSummary">Cypher Summary (public) — one bullet per line</label><textarea id="editSummary"></textarea>
     <label for="editCategory">Category</label><input id="editCategory">
     <label for="editPriority">Priority</label><input id="editPriority">
     <div class="checks"><label><input type="checkbox" id="editTop"> Top story</label><label><input type="checkbox" id="editDeveloping"> Developing</label><label><input type="checkbox" id="editPaywall"> Paywall</label></div>
   </div>
-  <div class="dialog-foot"><button onclick="editDialog.close()">Cancel</button><button class="primary" onclick="submitEditApprove()">Approve edited</button></div>
+  <div class="dialog-foot"><button onclick="editDialog.close()">Cancel</button><button class="primary" id="editDialogSubmit" onclick="submitEdit()">Approve edited</button></div>
 </dialog>
 
 <dialog id="rejectDialog">
@@ -117,8 +122,12 @@ function render(){
 function selectCandidate(i){selected=i;render()}
 function renderCandidate(c){const s=sourceOf(c),p=proposalOf(c),sum=summaryOf(p),pay=!!(s.paywall||c.paywall||c.paywall_status==='paywall');const resolved=c.source_resolution==='resolved';const origLabel=resolved?'Verbatim original source headline':'Discovery source headline — not yet resolved';q('main').innerHTML=`<article class="review"><div class="topline"><span class="tag">${esc(s.role||s.source_type||'')}</span><span class="tag">${esc(s.reliability||'')}</span>${pay?'<span class="tag paywall">PAYWALL</span>':''}${p.top_story?'<span class="tag">TOP STORY</span>':''}${p.developing?'<span class="tag">DEVELOPING</span>':''}${!resolved?'<span class="tag">UNRESOLVED SOURCE</span>':''}</div><div class="source-row"><div><div class="label">Source</div><strong>${esc(s.name||'')}</strong></div><div>${isHttpUrl(s.url)?`<a href="${esc(s.url)}" target="_blank" rel="noopener">Open original ↗</a>`:''}</div></div><div class="label section">${esc(origLabel)}</div><div class="original">${esc(c.original_headline||c.headline||'')}</div><div class="label">AINWA brief headline</div><h1>${esc(p.brief_headline||'')}</h1><div class="label">Cypher Summary (public)</div><ul class="summary">${sum.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="facts"><div class="fact"><span>Category</span>${esc(p.category||'—')}</div><div class="fact"><span>Priority</span>${esc(p.priority||'—')}</div><div class="fact"><span>Top story</span>${p.top_story?'Yes':'No'}</div><div class="fact"><span>Developing</span>${p.developing?'Yes':'No'}</div></div>${p.editorial_notes?`<div class="section"><div class="label">Internal — not published</div><div class="note">${esc(p.editorial_notes)}</div></div>`:''}${p.why_selected?`<div class="section"><div class="label">Claude rationale</div><div class="note">${esc(p.why_selected)}</div></div>`:''}${p.duplicate_note?`<div class="section"><div class="label">Corroboration / duplicate note</div><div class="note">${esc(p.duplicate_note)}</div></div>`:''}<div class="actions"><button class="primary" onclick="review('approve')">Approve As-Is</button><button onclick="openEdit()">Edit & Approve</button><button onclick="snoozeDialog.showModal()">Snooze</button><button onclick="rejectDialog.showModal()">Reject</button><button onclick="archiveDialog.showModal()">Straight to Archive</button><span class="spacer"></span><span class="keys">A approve · E edit · S snooze · R reject · W archive · ←/→ navigate</span></div></article>`}
 async function review(action,payload={}){const c=state.candidates[selected];if(!c)return;const r=await fetch('/api/review',{method:'POST',headers:{'Content-Type':'application/json','X-AINWA-CSRF-Token':csrfToken||''},body:JSON.stringify({id:c.id,action,...payload})});const out=await r.json();if(!r.ok){alert(out.error||'Review action failed');return}notify(action.replace('_',' '));await load()}
-function openEdit(){const c=state.candidates[selected],p=proposalOf(c),s=sourceOf(c);q('editHeadline').value=p.brief_headline||'';q('editSummary').value=summaryOf(p).join('\n');q('editCategory').value=p.category||'';q('editPriority').value=p.priority||'';q('editTop').checked=!!p.top_story;q('editDeveloping').checked=!!p.developing;q('editPaywall').checked=!!(s.paywall||c.paywall||c.paywall_status==='paywall');editDialog.showModal()}
+let editDialogMode='edit_approve';
+function openEdit(){const c=state.candidates[selected],p=proposalOf(c),s=sourceOf(c);editDialogMode='edit_approve';q('editDialogHead').textContent='Edit & Approve';q('editDialogSubmit').textContent='Approve edited';q('manualFields').style.display='none';q('editHeadline').value=p.brief_headline||'';q('editSummary').value=summaryOf(p).join('\n');q('editCategory').value=p.category||'';q('editPriority').value=p.priority||'';q('editTop').checked=!!p.top_story;q('editDeveloping').checked=!!p.developing;q('editPaywall').checked=!!(s.paywall||c.paywall||c.paywall_status==='paywall');editDialog.showModal()}
+function openManual(){editDialogMode='manual';q('editDialogHead').textContent='Add Manual Candidate';q('editDialogSubmit').textContent='Add to Review Queue';q('manualFields').style.display='';q('manualUrl').value='';q('manualSource').value='';q('manualOriginal').value='';q('editHeadline').value='';q('editSummary').value='';q('editCategory').value='';q('editPriority').value='';q('editTop').checked=false;q('editDeveloping').checked=false;q('editPaywall').checked=false;editDialog.showModal()}
+function submitEdit(){if(editDialogMode==='manual'){submitManual()}else{submitEditApprove()}}
 function submitEditApprove(){const edits={headline:q('editHeadline').value.trim(),public_summary:q('editSummary').value.split('\n').map(x=>x.trim()).filter(Boolean),category:q('editCategory').value.trim(),priority:q('editPriority').value.trim(),top_story:q('editTop').checked,developing:q('editDeveloping').checked,paywall:q('editPaywall').checked};editDialog.close();review('edit_approve',{edits})}
+async function submitManual(){const url=q('manualUrl').value.trim(),src=q('manualSource').value.trim(),hl=q('manualOriginal').value.trim();if(!url||!src||!hl){alert('URL, Source Name and Original Headline are required');return}const r=await fetch('/api/manual',{method:'POST',headers:{'Content-Type':'application/json','X-AINWA-CSRF-Token':csrfToken||''},body:JSON.stringify({url,source_name:src,original_headline:hl,brief_headline:q('editHeadline').value.trim(),public_summary:q('editSummary').value.split('\n').map(x=>x.trim()).filter(Boolean),category:q('editCategory').value.trim(),priority:q('editPriority').value.trim(),top_story:q('editTop').checked,developing:q('editDeveloping').checked,paywall:q('editPaywall').checked})});const out=await r.json();if(!r.ok){alert(out.error||'Failed to add candidate');return}editDialog.close();notify('Manual candidate added');await load()}
 function submitReject(){const reason=q('rejectReason').value;rejectDialog.close();review('reject',{reason})}
 function submitSnooze(){const until=q('snoozeUntil').value,reason=q('snoozeReason').value;snoozeDialog.close();review('snooze',{until,reason})}
 function submitArchive(){archiveDialog.close();review('archive')}

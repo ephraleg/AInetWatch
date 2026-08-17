@@ -392,6 +392,97 @@ def main():
               ps_rec is not None and ps_rec.get("language") == valid_localization_ps,
               str(ps_rec))
 
+        # --- manual candidate endpoint (/api/manual) ---
+        manual_url = "https://example.com/manual-story-1"
+        seed(data_dir, candidates=[], approved=[])
+
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": manual_url, "source_name": "Example News", "original_headline": "Big AI story"},
+                                   headers=good_headers)
+        check("manual: valid candidate accepted (200)", status == 200 and (body or {}).get("ok") is True, f"{status} {body}")
+        manual_id = (body or {}).get("id", "")
+        check("manual: response contains a candidate id", bool(manual_id), str(body))
+
+        cq = json.loads((data_dir / "candidate-queue.json").read_text())
+        mc = next((c for c in cq.get("candidates", []) if c.get("id") == manual_id), None)
+        check("manual: candidate written to candidate-queue.json", mc is not None, str([c.get("id") for c in cq.get("candidates", [])]))
+        check("manual: intake_method is 'manual'", mc is not None and mc.get("intake_method") == "manual", str(mc))
+        check("manual: status is 'review'", mc is not None and mc.get("status") == "review", str(mc))
+        check("manual: source.url stored correctly", mc is not None and (mc.get("source") or {}).get("url") == manual_url, str(mc))
+
+        aq = json.loads((data_dir / "approved-queue.json").read_text())
+        check("manual: candidate not written to approved-queue.json", not any(s.get("id") == manual_id for s in aq.get("stories", [])))
+
+        # proposal fields are persisted when provided
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "https://example.com/manual-with-proposal",
+                                         "source_name": "Test Source",
+                                         "original_headline": "Raw feed headline",
+                                         "brief_headline": "Editor-written brief headline",
+                                         "public_summary": ["Point one.", "Point two."],
+                                         "category": "Models",
+                                         "priority": "High",
+                                         "top_story": True,
+                                         "developing": False,
+                                         "paywall": True},
+                                   headers=good_headers)
+        check("manual: proposal fields accepted (200)", status == 200 and (body or {}).get("ok") is True, f"{status} {body}")
+        pid = (body or {}).get("id", "")
+        cq = json.loads((data_dir / "candidate-queue.json").read_text())
+        mp = next((c for c in cq.get("candidates", []) if c.get("id") == pid), None)
+        check("manual: brief_headline stored in proposal", mp is not None and (mp.get("proposal") or {}).get("brief_headline") == "Editor-written brief headline", str(mp))
+        check("manual: public_summary stored in proposal", mp is not None and (mp.get("proposal") or {}).get("public_summary") == ["Point one.", "Point two."], str(mp))
+        check("manual: category stored in proposal", mp is not None and (mp.get("proposal") or {}).get("category") == "Models", str(mp))
+        check("manual: top_story stored in proposal", mp is not None and (mp.get("proposal") or {}).get("top_story") is True, str(mp))
+        check("manual: paywall stored in source", mp is not None and (mp.get("source") or {}).get("paywall") is True, str(mp))
+
+        # invalid URL schemes rejected
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "javascript:alert(1)", "source_name": "X", "original_headline": "Y"},
+                                   headers=good_headers)
+        check("manual: javascript: URL rejected with 400", status == 400, f"{status} {body}")
+
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "ftp://example.com/file", "source_name": "X", "original_headline": "Y"},
+                                   headers=good_headers)
+        check("manual: ftp:// URL rejected with 400", status == 400, f"{status} {body}")
+
+        # missing required fields
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "https://example.com/story2"},
+                                   headers=good_headers)
+        check("manual: missing source_name and headline rejected with 400", status == 400, f"{status} {body}")
+
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "https://example.com/story3", "source_name": "X", "original_headline": ""},
+                                   headers=good_headers)
+        check("manual: empty original_headline rejected with 400", status == 400, f"{status} {body}")
+
+        # duplicate URL rejected
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": manual_url, "source_name": "Other", "original_headline": "Duplicate"},
+                                   headers=good_headers)
+        check("manual: duplicate candidate URL rejected with 409", status == 409, f"{status} {body}")
+
+        # duplicate URL against approved story rejected
+        seed(data_dir, candidates=[],
+             approved=[{"id": "approved-001", "source": {"url": "https://example.com/approved-story"}, "approved": {"locked": True, "approved_by": "human", "approved_at": "2026-08-17T00:00:00Z"}}])
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "https://example.com/approved-story", "source_name": "X", "original_headline": "Z"},
+                                   headers=good_headers)
+        check("manual: URL already in approved stories rejected with 409", status == 409, f"{status} {body}")
+
+        # CSRF required at /api/manual too
+        status, body, _ = request("POST", "/api/manual", base,
+                                   body={"url": "https://example.com/new", "source_name": "X", "original_headline": "Z"},
+                                   headers={})
+        check("manual: missing CSRF token rejected with 403", status == 403, f"{status} {body}")
+
+        # /api/review still works (regression check)
+        seed(data_dir, candidates=[make_candidate("rcheck-manual")], approved=[])
+        status, body, _ = request("POST", "/api/review", base, body={"id": "rcheck-manual", "action": "approve"}, headers=good_headers)
+        check("manual: /api/review unaffected after adding /api/manual route", status == 200 and (body or {}).get("ok") is True, f"{status} {body}")
+
     finally:
         proc.terminate()
         try:

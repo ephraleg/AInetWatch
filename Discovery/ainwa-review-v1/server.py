@@ -320,6 +320,111 @@ def make_archived(candidate: dict) -> dict:
     return base
 
 
+def make_manual_candidate(url: str, source_name: str, original_headline: str, proposal: dict | None = None) -> dict:
+    ts = now_iso()
+    p = proposal or {}
+    brief_headline = str(p.get("brief_headline") or original_headline)
+    public_summary = p.get("public_summary") or []
+    if isinstance(public_summary, str):
+        public_summary = [ln.strip() for ln in public_summary.splitlines() if ln.strip()]
+    return {
+        "id": f"manual-{secrets.token_hex(8)}",
+        "intake_method": "manual",
+        "status": "review",
+        "queued_at": ts,
+        "discovered_at": ts,
+        "original_headline": original_headline,
+        "source": {
+            "name": source_name,
+            "url": url,
+            "paywall": bool(p.get("paywall", False)),
+        },
+        "proposal": {
+            "brief_headline": brief_headline,
+            "headline": brief_headline,
+            "public_summary": public_summary,
+            "category": str(p.get("category") or ""),
+            "priority": str(p.get("priority") or ""),
+            "top_story": bool(p.get("top_story", False)),
+            "developing": bool(p.get("developing", False)),
+            "editorial_notes": str(p.get("editorial_notes") or ""),
+            "why_selected": "",
+            "duplicate_note": "",
+        },
+    }
+
+
+def _canonical_url(url: str) -> str:
+    p = urlparse(url)
+    return p._replace(scheme=p.scheme.lower(), netloc=p.netloc.lower(), fragment="").geturl().rstrip("/")
+
+
+def apply_manual(body: dict) -> tuple[int, dict]:
+    url = str(body.get("url") or "").strip()
+    source_name = str(body.get("source_name") or "").strip()
+    original_headline = str(body.get("original_headline") or "").strip()
+
+    if not is_http_url(url):
+        return 400, {"error": "url must be a valid http or https URL"}
+    if not source_name:
+        return 400, {"error": "source_name is required"}
+    if not original_headline:
+        return 400, {"error": "original_headline is required"}
+
+    canonical = _canonical_url(url)
+
+    with LOCK:
+        try:
+            cpayload = read_json_checked(CANDIDATES_FILE, {"version": 1, "candidates": []})
+        except QueueFileError as e:
+            return 500, {"error": f"candidate-queue.json is malformed and was not modified: {e.detail}"}
+        candidates = candidate_list(cpayload)
+
+        try:
+            apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
+        except QueueFileError as e:
+            return 500, {"error": f"approved-queue.json is malformed and was not modified: {e.detail}"}
+        stories = approved_list(apayload)
+
+        for c in candidates:
+            existing = (c.get("source") or {}).get("url") or c.get("url") or ""
+            if is_http_url(existing) and _canonical_url(existing) == canonical:
+                return 409, {"error": "a candidate with that URL is already in the queue"}
+        for s in stories:
+            existing = (s.get("source") or {}).get("url") or s.get("url") or ""
+            if is_http_url(existing) and _canonical_url(existing) == canonical:
+                return 409, {"error": "a story with that URL has already been approved"}
+
+        proposal_overrides = {
+            "brief_headline": str(body.get("brief_headline") or "").strip(),
+            "public_summary": body.get("public_summary") or [],
+            "category": str(body.get("category") or "").strip(),
+            "priority": str(body.get("priority") or "").strip(),
+            "top_story": bool(body.get("top_story", False)),
+            "developing": bool(body.get("developing", False)),
+            "editorial_notes": str(body.get("editorial_notes") or "").strip(),
+            "paywall": bool(body.get("paywall", False)),
+        }
+        candidate = make_manual_candidate(url, source_name, original_headline, proposal_overrides)
+        candidates.append(candidate)
+        if isinstance(cpayload, dict):
+            cpayload["candidates"] = candidates
+            cpayload["updated_at"] = now_iso()
+        else:
+            cpayload = {"version": 1, "updated_at": now_iso(), "candidates": candidates}
+        write_json(CANDIDATES_FILE, cpayload)
+
+        append_log({
+            "candidate_id": candidate["id"],
+            "action": "manual_add",
+            "url": url,
+            "source_name": source_name,
+            "at": now_iso(),
+        })
+
+    return 200, {"ok": True, "id": candidate["id"]}
+
+
 def append_log(event: dict) -> None:
     try:
         payload = read_json_checked(LOG_FILE, {"version": 1, "events": []})
@@ -562,7 +667,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path != "/api/review":
+        if path not in {"/api/review", "/api/manual"}:
             self.send_error(404)
             return
 
@@ -621,7 +726,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "request body must be a JSON object"})
             return
 
-        status, result = apply_action(body)
+        if path == "/api/manual":
+            status, result = apply_manual(body)
+        else:
+            status, result = apply_action(body)
         self._json(status, result)
 
     def log_message(self, fmt, *args):
