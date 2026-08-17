@@ -1056,5 +1056,71 @@ class TestAnchorLogicRemoved(unittest.TestCase):
         self.assertNotIn("Non-anchor candidates", prompt)
 
 
+class TestQueueWriteRace(unittest.TestCase):
+    """generate.py must not clobber reviewer changes made during the API-call window."""
+
+    def test_manual_candidate_preserved_across_generate_write(self):
+        """A manual candidate added while Claude is running must survive generate.py's write."""
+        new_item = _item(item_id="raw-SRC-001-new00003", canonical_url="https://example.com/new3")
+        CLAUDE_RESPONSE = json.dumps([_selection(item_id=1)])
+
+        manual = {
+            "id": "manual-race-test-00000001",
+            "intake_method": "manual",
+            "status": "review",
+            "queued_at": "2026-08-17T00:00:00Z",
+            "discovered_at": "2026-08-17T00:00:00Z",
+            "original_headline": "Manual story added during API call",
+            "source": {"name": "Manual", "url": "https://manual.example.com/story"},
+            "proposal": {
+                "brief_headline": "Manual story",
+                "headline": "Manual story",
+                "public_summary": [],
+                "category": "",
+                "priority": "",
+                "top_story": False,
+                "developing": False,
+                "editorial_notes": "",
+            },
+        }
+
+        # Simulate generate.py reading an empty queue at startup, then a reviewer
+        # adding a manual candidate during the API call window.
+        candidates_read_count = 0
+        original_read_json = generate.read_json
+
+        def patched_read_json(path, default):
+            nonlocal candidates_read_count
+            if str(path).endswith("candidate-queue.json"):
+                candidates_read_count += 1
+                if candidates_read_count == 1:
+                    return {"candidates": []}       # initial read — empty
+                else:
+                    return {"candidates": [manual]} # reviewer added during API call
+            return original_read_json(path, default)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            d = Path(tmpdir)
+            (d / "filtered-discovery.json").write_text(json.dumps({"items": [new_item]}))
+            (d / "approved-queue.json").write_text(json.dumps({"stories": []}))
+            (d / "candidate-queue.json").write_text(json.dumps({"candidates": []}))
+
+            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False), \
+                 patch("generate.call_claude", return_value=CLAUDE_RESPONSE), \
+                 patch("generate.read_json", side_effect=patched_read_json):
+                rc = generate.main(["--data-dir", tmpdir, "--skip-advisory"])
+
+            result = json.loads((d / "candidate-queue.json").read_text())
+
+        self.assertEqual(rc, 0)
+        ids = [c["id"] for c in result["candidates"]]
+        self.assertIn(
+            "manual-race-test-00000001",
+            ids,
+            "Manual candidate added during API call must survive generate.py write",
+        )
+        self.assertIn(new_item["item_id"], ids, "New generated candidate must also be present")
+
+
 if __name__ == "__main__":
     unittest.main()

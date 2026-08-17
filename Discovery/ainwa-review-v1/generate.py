@@ -20,11 +20,13 @@ Run:
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import sys
 import urllib.request
 import urllib.error
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -86,6 +88,26 @@ def write_json(path: Path, data) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
     os.replace(tmp, path)
+
+
+@contextmanager
+def _queue_lock(path: Path):
+    """Advisory exclusive file lock for cross-process candidate-queue serialization.
+
+    Uses a sidecar .lock file independent of os.replace() on the queue itself.
+    fcntl.flock is advisory — both sides must call _queue_lock() for this to work.
+    """
+    lock_path = path.with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = lock_path.open("w")
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        fd.close()
 
 
 def _http_post(url: str, headers: dict, body: dict, timeout: int = 120) -> dict:
@@ -725,22 +747,28 @@ def main(argv=None):
     # --- Build and write candidates ---
     new_candidates = build_candidates(selections, item_lookup, grok_results, gemini_results, grok_ran, gemini_ran)
 
-    # Merge: today's new candidates first, then carryover (prior unresolved within window).
-    # Carryover candidates retain their existing status / human_decision fields.
-    merged_candidates = new_candidates + carryover
-
-    output = {
-        "version": 1,
-        "generated_at": now_iso(),
-        "model": args.model,
-        "input_count": len(items),
-        "excluded_approved": len(approved_urls),
-        "carryover_count": len(carryover),
-        "candidates": merged_candidates,
-    }
-    write_json(candidates_file, output)
+    # Re-read the queue inside an exclusive file lock to incorporate any reviewer
+    # changes (manual adds, review actions) that occurred during the API-call window.
+    with _queue_lock(candidates_file):
+        current_payload = read_json(candidates_file, {"candidates": []})
+        current_candidates = (
+            current_payload.get("candidates", [])
+            if isinstance(current_payload, dict) else []
+        )
+        fresh_carryover = _carryover_candidates(current_candidates, cutoff_ts)
+        merged_candidates = new_candidates + fresh_carryover
+        output = {
+            "version": 1,
+            "generated_at": now_iso(),
+            "model": args.model,
+            "input_count": len(items),
+            "excluded_approved": len(approved_urls),
+            "carryover_count": len(fresh_carryover),
+            "candidates": merged_candidates,
+        }
+        write_json(candidates_file, output)
     print(
-        f"[AINWA] Wrote {len(new_candidates)} new + {len(carryover)} carryover "
+        f"[AINWA] Wrote {len(new_candidates)} new + {len(fresh_carryover)} carryover "
         f"= {len(merged_candidates)} total candidates to {candidates_file}.",
         file=sys.stderr,
     )

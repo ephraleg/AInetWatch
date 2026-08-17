@@ -105,7 +105,7 @@ async function load(){
     return;
   }
   stateError=null;
-  state=body;
+  state=body;lastFingerprint=_fingerprint(state);
   csrfToken=body.csrf_token||null;
   if(selected>=state.candidates.length)selected=Math.max(0,state.candidates.length-1);
   render();
@@ -131,6 +131,11 @@ async function submitManual(){const url=q('manualUrl').value.trim(),src=q('manua
 function submitReject(){const reason=q('rejectReason').value;rejectDialog.close();review('reject',{reason})}
 function submitSnooze(){const until=q('snoozeUntil').value,reason=q('snoozeReason').value;snoozeDialog.close();review('snooze',{until,reason})}
 function submitArchive(){archiveDialog.close();review('archive')}
+let lastFingerprint=null;let pendingRefresh=false;
+function _fingerprint(s){return(s&&s.generated_at||'')+' '+(s&&s.queue_total!=null?s.queue_total:0)}
+async function pollState(){try{const r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)return;const body=await r.json().catch(()=>null);if(!body)return;const fp=_fingerprint(body);if(fp===lastFingerprint)return;lastFingerprint=fp;if(document.querySelector('dialog[open]')){pendingRefresh=true;return}await load()}catch(e){}}
+setInterval(pollState,15000);
+document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',()=>{if(pendingRefresh){pendingRefresh=false;load()}}));
 document.addEventListener('keydown',e=>{if(document.querySelector('dialog[open]'))return;if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if(e.key==='a'||e.key==='A')review('approve');else if(e.key==='e'||e.key==='E')openEdit();else if(e.key==='s'||e.key==='S')snoozeDialog.showModal();else if(e.key==='r'||e.key==='R')rejectDialog.showModal();else if(e.key==='w'||e.key==='W')archiveDialog.showModal();else if(e.key==='ArrowRight'){selected=Math.min(selected+1,state.candidates.length-1);render()}else if(e.key==='ArrowLeft'){selected=Math.max(selected-1,0);render()}});load().catch(err=>q('main').innerHTML=`<div class="empty">${esc(err)}</div>`)
 </script>
 </body>

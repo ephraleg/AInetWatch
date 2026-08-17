@@ -15,12 +15,14 @@ against, and docs/hardening-2026-08-13.md-equivalent notes in README.md.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import secrets
 import sys
 import threading
 import webbrowser
+from contextlib import contextmanager
 from datetime import datetime, date, timedelta, timezone
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -92,6 +94,26 @@ def write_json(path: Path, data) -> None:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
     os.replace(tmp, path)
+
+
+@contextmanager
+def _queue_lock(path: Path):
+    """Advisory exclusive file lock for cross-process candidate-queue serialization.
+
+    Uses a sidecar .lock file independent of os.replace() on the queue itself.
+    fcntl.flock is advisory — both sides must call _queue_lock() for this to work.
+    """
+    lock_path = path.with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = lock_path.open("w")
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        fd.close()
 
 
 def ensure_files() -> None:
@@ -374,53 +396,54 @@ def apply_manual(body: dict) -> tuple[int, dict]:
     canonical = _canonical_url(url)
 
     with LOCK:
-        try:
-            cpayload = read_json_checked(CANDIDATES_FILE, {"version": 1, "candidates": []})
-        except QueueFileError as e:
-            return 500, {"error": f"candidate-queue.json is malformed and was not modified: {e.detail}"}
-        candidates = candidate_list(cpayload)
+        with _queue_lock(CANDIDATES_FILE):
+            try:
+                cpayload = read_json_checked(CANDIDATES_FILE, {"version": 1, "candidates": []})
+            except QueueFileError as e:
+                return 500, {"error": f"candidate-queue.json is malformed and was not modified: {e.detail}"}
+            candidates = candidate_list(cpayload)
 
-        try:
-            apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
-        except QueueFileError as e:
-            return 500, {"error": f"approved-queue.json is malformed and was not modified: {e.detail}"}
-        stories = approved_list(apayload)
+            try:
+                apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
+            except QueueFileError as e:
+                return 500, {"error": f"approved-queue.json is malformed and was not modified: {e.detail}"}
+            stories = approved_list(apayload)
 
-        for c in candidates:
-            existing = (c.get("source") or {}).get("url") or c.get("url") or ""
-            if is_http_url(existing) and _canonical_url(existing) == canonical:
-                return 409, {"error": "a candidate with that URL is already in the queue"}
-        for s in stories:
-            existing = (s.get("source") or {}).get("url") or s.get("url") or ""
-            if is_http_url(existing) and _canonical_url(existing) == canonical:
-                return 409, {"error": "a story with that URL has already been approved"}
+            for c in candidates:
+                existing = (c.get("source") or {}).get("url") or c.get("url") or ""
+                if is_http_url(existing) and _canonical_url(existing) == canonical:
+                    return 409, {"error": "a candidate with that URL is already in the queue"}
+            for s in stories:
+                existing = (s.get("source") or {}).get("url") or s.get("url") or ""
+                if is_http_url(existing) and _canonical_url(existing) == canonical:
+                    return 409, {"error": "a story with that URL has already been approved"}
 
-        proposal_overrides = {
-            "brief_headline": str(body.get("brief_headline") or "").strip(),
-            "public_summary": body.get("public_summary") or [],
-            "category": str(body.get("category") or "").strip(),
-            "priority": str(body.get("priority") or "").strip(),
-            "top_story": bool(body.get("top_story", False)),
-            "developing": bool(body.get("developing", False)),
-            "editorial_notes": str(body.get("editorial_notes") or "").strip(),
-            "paywall": bool(body.get("paywall", False)),
-        }
-        candidate = make_manual_candidate(url, source_name, original_headline, proposal_overrides)
-        candidates.append(candidate)
-        if isinstance(cpayload, dict):
-            cpayload["candidates"] = candidates
-            cpayload["updated_at"] = now_iso()
-        else:
-            cpayload = {"version": 1, "updated_at": now_iso(), "candidates": candidates}
-        write_json(CANDIDATES_FILE, cpayload)
+            proposal_overrides = {
+                "brief_headline": str(body.get("brief_headline") or "").strip(),
+                "public_summary": body.get("public_summary") or [],
+                "category": str(body.get("category") or "").strip(),
+                "priority": str(body.get("priority") or "").strip(),
+                "top_story": bool(body.get("top_story", False)),
+                "developing": bool(body.get("developing", False)),
+                "editorial_notes": str(body.get("editorial_notes") or "").strip(),
+                "paywall": bool(body.get("paywall", False)),
+            }
+            candidate = make_manual_candidate(url, source_name, original_headline, proposal_overrides)
+            candidates.append(candidate)
+            if isinstance(cpayload, dict):
+                cpayload["candidates"] = candidates
+                cpayload["updated_at"] = now_iso()
+            else:
+                cpayload = {"version": 1, "updated_at": now_iso(), "candidates": candidates}
+            write_json(CANDIDATES_FILE, cpayload)
 
-        append_log({
-            "candidate_id": candidate["id"],
-            "action": "manual_add",
-            "url": url,
-            "source_name": source_name,
-            "at": now_iso(),
-        })
+            append_log({
+                "candidate_id": candidate["id"],
+                "action": "manual_add",
+                "url": url,
+                "source_name": source_name,
+                "at": now_iso(),
+            })
 
     return 200, {"ok": True, "id": candidate["id"]}
 
@@ -458,86 +481,87 @@ def apply_action(body: dict) -> tuple[int, dict]:
         edits = raw_edits
 
     with LOCK:
-        try:
-            cpayload = read_json_checked(CANDIDATES_FILE, {"version": 1, "candidates": []})
-        except QueueFileError as e:
-            return 500, {"error": f"candidate-queue.json is malformed and was not modified: {e.detail}"}
-
-        candidates = candidate_list(cpayload)
-
-        # Finding #7: refuse to act at all while duplicate IDs exist anywhere
-        # in the queue — acting on an ambiguous ID could silently affect the
-        # wrong record once the data is corrected.
-        dupes = duplicate_ids(candidates)
-        if dupes:
-            return 409, {
-                "error": "Duplicate candidate IDs detected in candidate-queue.json: "
-                         + ", ".join(dupes)
-                         + ". Fix the file before reviewing.",
-                "duplicate_ids": dupes,
-            }
-
-        candidate = next((c for c in candidates if str(c.get("id")) == candidate_id), None)
-        if not candidate:
-            return 404, {"error": f"candidate {candidate_id} not found"}
-
-        if action in {"approve", "edit_approve", "archive"}:
+        with _queue_lock(CANDIDATES_FILE):
             try:
-                apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
+                cpayload = read_json_checked(CANDIDATES_FILE, {"version": 1, "candidates": []})
             except QueueFileError as e:
-                return 500, {"error": f"approved-queue.json is malformed and was not modified: {e.detail}"}
-            stories = approved_list(apayload)
-            if any(str(s.get("id")) == candidate_id for s in stories):
-                return 409, {"error": "candidate is already approved or archived"}
-            if action == "archive":
-                record = make_archived(candidate)
+                return 500, {"error": f"candidate-queue.json is malformed and was not modified: {e.detail}"}
+
+            candidates = candidate_list(cpayload)
+
+            # Finding #7: refuse to act at all while duplicate IDs exist anywhere
+            # in the queue — acting on an ambiguous ID could silently affect the
+            # wrong record once the data is corrected.
+            dupes = duplicate_ids(candidates)
+            if dupes:
+                return 409, {
+                    "error": "Duplicate candidate IDs detected in candidate-queue.json: "
+                             + ", ".join(dupes)
+                             + ". Fix the file before reviewing.",
+                    "duplicate_ids": dupes,
+                }
+
+            candidate = next((c for c in candidates if str(c.get("id")) == candidate_id), None)
+            if not candidate:
+                return 404, {"error": f"candidate {candidate_id} not found"}
+
+            if action in {"approve", "edit_approve", "archive"}:
+                try:
+                    apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
+                except QueueFileError as e:
+                    return 500, {"error": f"approved-queue.json is malformed and was not modified: {e.detail}"}
+                stories = approved_list(apayload)
+                if any(str(s.get("id")) == candidate_id for s in stories):
+                    return 409, {"error": "candidate is already approved or archived"}
+                if action == "archive":
+                    record = make_archived(candidate)
+                else:
+                    record = make_approved(candidate, edits if action == "edit_approve" else {})
+                stories.append(record)
+                if isinstance(apayload, dict):
+                    apayload["version"] = apayload.get("version", 1)
+                    apayload["updated_at"] = now_iso()
+                    apayload["stories"] = stories
+                else:
+                    apayload = {"version": 1, "updated_at": now_iso(), "stories": stories}
+                write_json(APPROVED_FILE, apayload)
+                candidate["status"] = "archived" if action == "archive" else "approved"
+                candidate["human_decision"] = {
+                    "action": action,
+                    "at": now_iso(),
+                }
+                candidate["approved"] = record["approved"]
+
+            elif action == "reject":
+                candidate["status"] = "rejected"
+                candidate["human_decision"] = {
+                    "action": "reject",
+                    "reason": body.get("reason") or "",
+                    "at": now_iso(),
+                }
+
+            elif action == "snooze":
+                candidate["status"] = "snoozed"
+                candidate["human_decision"] = {
+                    "action": "snooze",
+                    "until": body.get("until") or "",
+                    "reason": body.get("reason") or "",
+                    "at": now_iso(),
+                }
+
+            if isinstance(cpayload, dict):
+                cpayload["candidates"] = candidates
+                cpayload["updated_at"] = now_iso()
             else:
-                record = make_approved(candidate, edits if action == "edit_approve" else {})
-            stories.append(record)
-            if isinstance(apayload, dict):
-                apayload["version"] = apayload.get("version", 1)
-                apayload["updated_at"] = now_iso()
-                apayload["stories"] = stories
-            else:
-                apayload = {"version": 1, "updated_at": now_iso(), "stories": stories}
-            write_json(APPROVED_FILE, apayload)
-            candidate["status"] = "archived" if action == "archive" else "approved"
-            candidate["human_decision"] = {
+                cpayload = {"version": 1, "updated_at": now_iso(), "candidates": candidates}
+            write_json(CANDIDATES_FILE, cpayload)
+
+            append_log({
+                "candidate_id": candidate_id,
                 "action": action,
-                "at": now_iso(),
-            }
-            candidate["approved"] = record["approved"]
-
-        elif action == "reject":
-            candidate["status"] = "rejected"
-            candidate["human_decision"] = {
-                "action": "reject",
                 "reason": body.get("reason") or "",
                 "at": now_iso(),
-            }
-
-        elif action == "snooze":
-            candidate["status"] = "snoozed"
-            candidate["human_decision"] = {
-                "action": "snooze",
-                "until": body.get("until") or "",
-                "reason": body.get("reason") or "",
-                "at": now_iso(),
-            }
-
-        if isinstance(cpayload, dict):
-            cpayload["candidates"] = candidates
-            cpayload["updated_at"] = now_iso()
-        else:
-            cpayload = {"version": 1, "updated_at": now_iso(), "candidates": candidates}
-        write_json(CANDIDATES_FILE, cpayload)
-
-        append_log({
-            "candidate_id": candidate_id,
-            "action": action,
-            "reason": body.get("reason") or "",
-            "at": now_iso(),
-        })
+            })
 
     return 200, {"ok": True, "id": candidate_id, "action": action}
 
