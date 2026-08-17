@@ -25,6 +25,8 @@ Run:
     python3 test_filter.py
     python3 -m pytest test_filter.py -v   (if pytest is available)
 """
+from __future__ import annotations
+
 import sys
 import unittest
 from datetime import datetime, timezone

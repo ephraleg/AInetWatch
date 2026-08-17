@@ -8,6 +8,8 @@ Security gates tested here:
   - 60 approved stories → 50 newest on homepage, 10 in archive
   - editorial_notes never appears anywhere in built output
 """
+from __future__ import annotations
+
 import json
 import sys
 import tempfile

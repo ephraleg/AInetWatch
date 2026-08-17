@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!--
   SEO / ANALYTICS / STRUCTURED DATA — merged in verbatim from production
-  index.html (source of truth: /Users/q/AInetWatch/index.html) per the
+  index.html (source of truth: production index.html) per the
   DRAFT-HARDENING pass. Do not alter these values in this pass; any change
   to title, description, canonical, OG/Twitter metadata, Clarity, or
   JSON-LD must be a deliberate decision made against production, not a
@@ -68,7 +68,7 @@
 
 <!--
   FAVICON — development-only addition (2026-08-12). Production
-  (/Users/q/AInetWatch) still has no favicon configuration; this is not
+  still has no favicon configuration; this is not
   a restoration of anything, it's new. Assets generated from
   CypherFavicon.jpg via sips (PNG resizes) + a hand-built PNG-in-ICO
   container (no ImageMagick/Pillow available; PNG-compressed ICO
@@ -80,36 +80,39 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 
 <!--
-  PLACEHOLDER CONTENT NOTICE
-  All headlines, sources, and summary bullets below are SAMPLE DATA for
-  layout/design purposes only. They are not real news.
+  LIVE-CONTENT VARIANT (2026-08-13) — duplicated from this directory's index.html
+  (the sample/placeholder draft, left untouched) to preview the same visual design
+  populated with the site's actual current live content.
 
-  RENDERING CONTRACT (architecture pass, 2026-08-12)
-  This markup is hand-authored for now, but its repeated story structures
-  are shaped to match the future build-time rendering contract:
+  Headline text, source labels, and links below were extracted directly from
+  production index.html (read-only reference; nothing there was modified)
+  as of 2026-08-13, LAST UPDATED 13-AUG-2026 07:43 EDT per that file's own header.
+  They are real, not sample data — 65 stories total (top story + developing +
+  23/21/19 across the three columns).
 
-    Approved Story Record (data/approved-queue.json)
-        → deterministic build/template
-        → this static HTML
+  TOOLTIP PROVENANCE (2026-08-13 update): summary bullets and category tags were
+  subsequently added for all 65 stories, but NOT by an ANWU pipeline — none of
+  these headlines have gone through discovery/scoring/human-review. The bullets
+  and tags were supplied directly by the user in chat and transcribed here
+  verbatim (matched positionally: user's list was in the same top → developing →
+  col1 → col2 → col3 order as the extracted live content, verified before use).
+  This is a manual one-off content pass, not a demonstration of the automated
+  rendering contract — real ANWU output would carry `approved_at`/`reviewed_by`
+  provenance that this content does not have.
 
-  ANWU agents never write HTML directly; they only ever produce Approved
-  Story Records, which a build step renders. Field mapping (see
-  docs/ANWU-HOMEPAGE-ARCHITECTURE.md in this directory for the full schema
-  and provenance model):
+  TAXONOMY FLAG: these tags use "Innovation" (not part of the documented
+  taxonomy — Models, Research, Security, Governance, Business, Infrastructure,
+  Applications — used in ANWU-SPEC.md/PRODUCT-SPEC.md/ANWU-HOMEPAGE-ARCHITECTURE.md)
+  and never use "Research" or "Applications". Implemented as given; flagged to
+  the user for a decision on whether to formally extend the taxonomy or
+  reconcile back to the documented 7. Not yet resolved as of this comment.
 
-    approved.top_story        → which story gets the .top-story treatment
-    approved.developing       → the "Developing" tag
-    approved.display_headline → headline link text
-    source.source_name        → the small source label
-    source.source_url         → headline href
-    approved.priority         → ordering within/between columns
-    approved.categories[]     → tooltip category tag pills
-    approved.summary_bullets[]→ tooltip bullets ("Here's the summary")
-    approved.image/image_alt  → optional rare story image + alt text
-
-  data-story-id / data-top-story / data-developing attributes below are
-  annotations only (no CSS/behavior depends on them) — they exist so the
-  markup↔schema mapping is inspectable directly in this file.
+  Also unlike the sample draft: Top Story and Developing are two separate real
+  stories here (as they are in production), each in its own slot — the sample
+  draft's single combined block was a placeholder simplification; this file
+  fixes that per docs/ANWU-HOMEPAGE-ARCHITECTURE.md §5a (presentation-only
+  change, no schema impact — top_story and developing were already distinct
+  flags in the schema).
 -->
 
 <style>
@@ -296,7 +299,7 @@
     font-size: 0.8rem;
     color: var(--muted);
   }
-  .top-story-body { display: flex; gap: 14px; align-items: flex-start; }
+  .top-story-body { position: relative; display: flex; gap: 14px; align-items: flex-start; }
   .top-story-img {
     flex: 0 0 96px;
     width: 96px;
@@ -304,6 +307,19 @@
     background: var(--tag-bg);
     border: 1px solid var(--rule);
   }
+
+  /* Developing strip — a SEPARATE story from Top Story (unlike the sample draft's
+     combined block). Reuses .developing-tag/.headline/.source; just a slim row. */
+  .developing-strip {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .developing-strip .headline { font-size: 1rem; }
 
   /* ---------- Wire grid ---------- */
   .wire-grid {
@@ -371,7 +387,13 @@
   }
   .story .headline:hover ~ .tooltip,
   .story .headline:focus ~ .tooltip,
-  .story .tip-toggle:checked ~ .tooltip {
+  .story .tip-toggle:checked ~ .tooltip,
+  .top-story-body .headline:hover ~ .tooltip,
+  .top-story-body .headline:focus ~ .tooltip,
+  .top-story-body .tip-toggle:checked ~ .tooltip,
+  .developing-strip .headline:hover ~ .tooltip,
+  .developing-strip .headline:focus ~ .tooltip,
+  .developing-strip .tip-toggle:checked ~ .tooltip {
     display: block;
   }
   .tooltip-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
@@ -499,354 +521,725 @@
   </div>
 
   <main class="wrap">
-
     <section class="top-story" aria-labelledby="top-story-heading">
       <h2 id="top-story-heading" class="visually-hidden">Top Story</h2>
-      <div class="top-story-body" data-story-id="top-story" data-top-story="true" data-developing="true">
-        <div class="top-story-img" role="img" aria-label="Story image placeholder"></div>
+      <div class="top-story-body" data-story-id="raw-SRC-072-308b6b53" data-top-story="true">
         <div class="story-text">
-          <span class="developing-tag">Developing</span>
-          <a class="headline" href="https://example.com/top-story" target="_blank" rel="noopener noreferrer">
-            Major AI lab confirms new frontier model is in final testing ahead of release
-          </a>
-          <span class="source">Reuters</span>
+          <a class="headline" href="https://the-decoder.com/anthropics-bio-weapons-filter-was-down-for-nearly-a-year-exposing-133-million-requests" target="_blank" rel="noopener noreferrer">ANTHROPIC BIO-WEAPONS FILTER DOWN NEARLY A YEAR, 133M REQUESTS EXPOSED</a>
+          <span class="source">The Decoder</span>
+          <input type="checkbox" id="tip-top-raw-SRC-072-308b6b53" class="tip-toggle">
+<label for="tip-top-raw-SRC-072-308b6b53" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Anthropic&#x27;s safety filter designed to block bioweapons-related queries was non-functional for nearly a year, leaving approximately 133 million API requests without that layer of protection.</li><li>A failed bio-safety filter at a frontier AI lab is among the most serious safety lapses yet reported publicly, raising urgent questions about how reliably AI safety controls are monitored and verified.</li><li>API customers, safety researchers, regulators, and the broader public trust in AI safety commitments are all directly affected; Anthropic faces pressure to detail its monitoring and incident-response processes.</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
         </div>
       </div>
     </section>
+
+
+    <section class="developing-strip-section" aria-labelledby="developing-heading">
+      <h2 id="developing-heading" class="visually-hidden">Developing</h2>
+      <div class="developing-strip" data-story-id="raw-SRC-002-fe478cec" data-developing="true">
+        <span class="developing-tag">Developing</span>
+        <a class="headline" href="https://www.techmeme.com/260813/p38" target="_blank" rel="noopener noreferrer">GOOGLE LAUNCHES GEMINI 3.7 FLASH FOR CODING AND AGENTS</a>
+        <span class="source">Techmeme</span>
+        <input type="checkbox" id="tip-dev-raw-SRC-002-fe478cec" class="tip-toggle">
+<label for="tip-dev-raw-SRC-002-fe478cec" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Google unveiled Gemini 3.7 Flash, positioning it as its most capable workhorse model for coding and agentic tasks, priced at $0.75 per million input tokens and $3.75 per million output tokens.</li><li>A competitive, lower-cost frontier model targeting developer and enterprise agent workloads directly challenges OpenAI&#x27;s o-series and Anthropic&#x27;s Claude Haiku tiers on both capability and price.</li><li>Developers building agentic pipelines and coding assistants gain a new high-performance option; competing providers face renewed pricing pressure across the mid-tier model segment.</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+      </div>
+    </section>
+
 
     <section aria-labelledby="wire-heading">
       <h2 id="wire-heading" class="visually-hidden">Headlines</h2>
-
       <div class="wire-grid">
-
-        <!-- Column 1 -->
         <div class="wire-col">
-
-          <div class="story" data-story-id="story-1">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-1" target="_blank" rel="noopener noreferrer">Regulators open new inquiry into model training data practices</a>
-                <span class="source">Bloomberg</span>
-                <input type="checkbox" id="tip-1" class="tip-toggle">
-                <label for="tip-1" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Inquiry targets data sourcing disclosures</li>
-                    <li>Several major labs named as subjects</li>
-                    <li>No penalties proposed yet</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Governance</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-top">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://finance.yahoo.com/technology/ai/articles/anthropic-said-talks-buy-startup-015017011.html" target="_blank" rel="noopener noreferrer">Anthropic said to be in talks to buy startup Decart for $6 billion</a>
+              <span class="source">Forbes</span>
+              <input type="checkbox" id="tip-c1-migrate-live-top" class="tip-toggle">
+<label for="tip-c1-migrate-live-top" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Reported acquisition talks</li><li>Decart valuation near $6 billion</li><li>Potential model/infrastructure consolidation</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-2">
-            <div class="story-body">
-              <div class="story-img" role="img" aria-label="Story image placeholder"></div>
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-2" target="_blank" rel="noopener noreferrer">Chipmaker unveils next-gen inference silicon aimed at data centers</a>
-                <span class="source">The Information</span>
-                <input type="checkbox" id="tip-2" class="tip-toggle">
-                <label for="tip-2" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Chip promises lower inference cost per token</li>
-                    <li>Sampling shipments begin next quarter</li>
-                    <li>Two hyperscalers already committed as buyers</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Infrastructure</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-2">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.axios.com/2026/08/07/openai-astra-model-delay-cybersecurity-risks" target="_blank" rel="noopener noreferrer">OpenAI Holding Off on Releasing &#x27;Astra&#x27; : &quot;cannot rule out critical cyber capabilities&quot;</a>
+              <span class="source">Axios</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-2" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-2" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Release allegedly paused</li><li>Critical cyber risks cited</li><li>Frontier-model safety threshold</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-3">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-3" target="_blank" rel="noopener noreferrer">Security researchers disclose prompt-injection flaw in popular agent framework</a>
-                <span class="source">SecurityWeek</span>
-                <input type="checkbox" id="tip-3" class="tip-toggle">
-                <label for="tip-3" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Flaw lets untrusted content hijack agent actions</li>
-                    <li>Patch available; adoption still low</li>
-                    <li>No confirmed exploitation in the wild yet</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Security</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-5">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.forbes.com/sites/johnkoetsier/2026/08/10/chinese-companies-are-winning-the-humanoid-robot-sales-battle-heres-why-that-doesnt-matter-yet/" target="_blank" rel="noopener noreferrer">Chinese Companies Are Winning The Humanoid Robot Sales Battle. Here&#x27;s Why That Doesn&#x27;t Matter Yet</a>
+              <span class="source">Forbes</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-5" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-5" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>China gains early commercial traction</li><li>Sales leadership may not equal long-term dominance</li><li>Manufacturing scale remains central</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-4">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-4" target="_blank" rel="noopener noreferrer">Startup raises new round to build AI tooling for legal document review</a>
-                <span class="source">TechCrunch</span>
-                <input type="checkbox" id="tip-4" class="tip-toggle">
-                <label for="tip-4" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Round led by existing investors</li>
-                    <li>Product targets mid-size law firms</li>
-                    <li>Plans to double headcount this year</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Business</span><span class="tag">Applications</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-8">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.techtimes.com/articles/323787/20260810/meta-launches-muse-glimmer-first-consumer-gpu-agent-model-built-autonomous-tasks.htm" target="_blank" rel="noopener noreferrer">Meta Launches Muse Glimmer: First Consumer GPU Agent Model Built for Autonomous Tasks</a>
+              <span class="source">Tech Times</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-8" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-8" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Consumer GPU agent model</li><li>Built for autonomous tasks</li><li>Claims require primary-source verification</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-5">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-5" target="_blank" rel="noopener noreferrer">Open-weight model release reignites debate over responsible disclosure</a>
-                <span class="source">Ars Technica</span>
-                <input type="checkbox" id="tip-5" class="tip-toggle">
-                <label for="tip-5" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Weights published without a safety card</li>
-                    <li>Researchers split on disclosure norms</li>
-                    <li>Downloads already in the tens of thousands</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Models</span><span class="tag">Governance</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-11">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://research.meta.ai/blog/introducing-muse-glimmer-open-agentic-model" target="_blank" rel="noopener noreferrer">Muse Glimmer released</a>
+              <span class="source">Meta AI</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-11" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-11" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Primary release announcement</li><li>Agent-model development</li><li>Stronger source than secondary coverage</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
           </div>
 
-          <!-- AD ZONE 2 — bottom of the left column only, ~3 headline-heights. Dormant = zero footprint. -->
-          <div class="ad-zone ad-zone--column" id="ad-zone-2" data-ad-zone="2"></div>
+          <div class="story" data-story-id="migrate-live-col1-14">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://x.ai/news/grok-voice-think-fast-2" target="_blank" rel="noopener noreferrer">xAI&#x27;s Grok Voice Think Fast 2.0 beats OpenAI, Google on speech benchmarks — becomes default Aug 5</a>
+              <span class="source">xAI</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-14" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-14" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Voice-model update</li><li>Benchmark leadership claim</li><li>Primary-company claim needs independent validation</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-17">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://openai.com/index/improving-gpt-5-6-sol-in-chatgpt/" target="_blank" rel="noopener noreferrer">GPT-5.6 Sol expands free-tier access</a>
+              <span class="source">OpenAI</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-17" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-17" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Broader free-user availability</li><li>Consumer acquisition strategy</li><li>Product-access update</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-20">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.anthropic.com/research/discovering-cryptographic-weaknesses" target="_blank" rel="noopener noreferrer">Unreleased Claude model finds cryptographic weaknesses in AES cipher: A FIRST</a>
+              <span class="source">Anthropic</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-20" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-20" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Cryptography claim of exceptional significance</li><li>Could affect widely used encryption</li><li>Requires immediate primary verification</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-23">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://siliconangle.com/2026/07/30/google-deepmind-debuts-gemini-robotics-2-model-series-humanoid-robots/" target="_blank" rel="noopener noreferrer">Gemini Robotics 2 gives humanoids full &quot;feet to fingertips&quot; control</a>
+              <span class="source">SiliconANGLE</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col1-23" class="tip-toggle">
+<label for="tip-c1-migrate-live-col1-23" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Robotics-model capability claim</li><li>Fine motor and whole-body control</li><li>Requires technical demonstration review</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-3">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://techcrunch.com/2026/08/11/anthropic-says-it-will-watermark-text-generated-by-its-ai-models/" target="_blank" rel="noopener noreferrer">Anthropic says it will watermark text generated by its AI models</a>
+              <span class="source">TechCrunch</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-3" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-3" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Provenance mechanism for AI text</li><li>Helps detection and accountability</li><li>Technical durability remains critical</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-6">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.securityweek.com/ghostjacking-attack-uses-poisoned-logs-to-turn-ai-agents-bad/" target="_blank" rel="noopener noreferrer">&#x27;Ghostjacking&#x27; Attack Uses Poisoned Logs to Turn AI Agents Bad</a>
+              <span class="source">SecurityWeek</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-6" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-6" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Indirect prompt-injection pattern</li><li>Logs become malicious input channel</li><li>Agent security design issue</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-9">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.securityweek.com/stealthium-targets-security-blind-spots-in-ai-accelerators-and-neo-clouds/" target="_blank" rel="noopener noreferrer">Stealthium Targets Security Blind Spots in AI Accelerators and Neo-Clouds</a>
+              <span class="source">SecurityWeek</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-9" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-9" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Security startup/product angle</li><li>AI infrastructure attack surface</li><li>Evaluate vendor claims carefully</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-12">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.axios.com/2026/08/03/white-house-finalizes-ai-framework-behind-closed-doors" target="_blank" rel="noopener noreferrer">WHITE HOUSE FINALIZES VOLUNTARY AI SAFETY FRAMEWORK — WON&#x27;T SAY WHAT&#x27;S IN IT</a>
+              <span class="source">Axios</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-12" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-12" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Federal voluntary-safety initiative</li><li>Details reportedly undisclosed</li><li>Official text is essential</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-15">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://edition.cnn.com/2026/08/03/tech/white-house-meet-with-top-ai-companies-big-regulation-push" target="_blank" rel="noopener noreferrer">White House to host OpenAI, Anthropic, Google and Meta for first look at new voluntary cybersecurity framework...</a>
+              <span class="source">CNN</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-15" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-15" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Major labs meet administration</li><li>Cybersecurity framework preview</li><li>Signals voluntary coordination</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-18">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://digital-strategy.ec.europa.eu/en/news/commission-starts-enforcing-ai-act-rules-and-new-transparency-requirements-2-august" target="_blank" rel="noopener noreferrer">EU AI ACT: Transparency rules become enforceable Aug 2 — chatbots, deepfakes, AI content must now be disclosed</a>
+              <span class="source">European Commission</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-18" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-18" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Disclosure duties begin</li><li>Chatbot and deepfake rules</li><li>Compliance implications for providers</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-21">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.cnn.com/2026/07/29/tech/us-china-robot-ban-intl-hnk" target="_blank" rel="noopener noreferrer">TRUMP ADMIN BANS CHINESE HUMANOID ROBOTS OVER NATIONAL SECURITY CONCERNS</a>
+              <span class="source">CNN</span>
+              <input type="checkbox" id="tip-c1-migrate-live-col2-21" class="tip-toggle">
+<label for="tip-c1-migrate-live-col2-21" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>National-security restriction claim</li><li>Robotics supply-chain consequences</li><li>Requires official order confirmation</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
 
         </div>
-
-        <!-- Column 2 -->
         <div class="wire-col">
-
-          <div class="story" data-story-id="story-6">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-6" target="_blank" rel="noopener noreferrer">Peer-reviewed study finds diminishing returns from larger pretraining runs</a>
-                <span class="source">Nature</span>
-                <input type="checkbox" id="tip-6" class="tip-toggle">
-                <label for="tip-6" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Study spans several model families</li>
-                    <li>Gains flatten past a compute threshold</li>
-                    <li>Authors call for efficiency-focused benchmarks</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Research</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-developing">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.cnn.com/2026/08/06/health/ai-viruses-bacteriophages" target="_blank" rel="noopener noreferrer">Ai creating new viral genomes different from any known natural viruses</a>
+              <span class="source">CNN</span>
+              <input type="checkbox" id="tip-c2-migrate-live-developing" class="tip-toggle">
+<label for="tip-c2-migrate-live-developing" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Synthetic-virus research claim</li><li>Genomes unlike known natural viruses</li><li>Major biosecurity implications</li></ul>
+  <div class="tags"><span class="tag">Innovation</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-7">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-7" target="_blank" rel="noopener noreferrer">Cloud provider reports AI workloads now majority of new compute demand</a>
-                <span class="source">Financial Times</span>
-                <input type="checkbox" id="tip-7" class="tip-toggle">
-                <label for="tip-7" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Figure disclosed in latest earnings call</li>
-                    <li>Capacity constraints flagged for next two quarters</li>
-                    <li>New data center sites announced in three regions</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Infrastructure</span><span class="tag">Business</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-3">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://techcrunch.com/2026/08/11/googles-gemini-app-surges-to-one-billion-users/" target="_blank" rel="noopener noreferrer">Google&#x27;s Gemini app surges to one billion users</a>
+              <span class="source">TechCrunch</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-3" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-3" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Major consumer adoption milestone</li><li>Google distribution advantage</li><li>Intensifies assistant competition</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-8">
-            <div class="story-body">
-              <div class="story-img" role="img" aria-label="Story image placeholder"></div>
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-8" target="_blank" rel="noopener noreferrer">Lawmakers introduce draft bill on AI-generated content labeling</a>
-                <span class="source">Axios</span>
-                <input type="checkbox" id="tip-8" class="tip-toggle">
-                <label for="tip-8" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Bill would require visible labels on synthetic media</li>
-                    <li>Enforcement mechanism still under discussion</li>
-                    <li>Industry groups signal mixed reaction</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Governance</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-6">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://claude.com/blog/bringing-claude-code-and-claude-cowork-to-government" target="_blank" rel="noopener noreferrer">Bringing Claude Code and Claude Cowork to government</a>
+              <span class="source">Anthropic</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-6" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-6" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Government-focused Claude deployment</li><li>Coding and workplace-agent tools</li><li>Public-sector AI expansion</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-9">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-9" target="_blank" rel="noopener noreferrer">Enterprise survey finds most AI pilots still stall before production</a>
-                <span class="source">Wired</span>
-                <input type="checkbox" id="tip-9" class="tip-toggle">
-                <label for="tip-9" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Survey covers several hundred enterprise teams</li>
-                    <li>Data quality cited as top blocker</li>
-                    <li>Budget for pilots still rising year over year</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Applications</span><span class="tag">Business</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-9">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.techtimes.com/articles/323712/20260810/coding-olympiad-opens-country-that-named-algorithm-telegram-pays-117k.htm" target="_blank" rel="noopener noreferrer">Coding Olympiad Opens in Country That Named Algorithm, Telegram Pays $117K</a>
+              <span class="source">Tech Times</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-9" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-9" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Competitive programming event</li><li>Prize-driven developer participation</li><li>Limited direct AI-news relevance</li></ul>
+  <div class="tags"><span class="tag">Innovation</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-10">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-10" target="_blank" rel="noopener noreferrer">Court filing reveals details of ongoing dispute over training data licensing</a>
-                <span class="source">AP</span>
-                <input type="checkbox" id="tip-10" class="tip-toggle">
-                <label for="tip-10" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Filing is part of a broader ongoing case</li>
-                    <li>Both sides dispute the scope of prior agreements</li>
-                    <li>Next hearing scheduled for later this year</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Governance</span><span class="tag">Business</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-12">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://fortune.com/2026/08/04/cloudflare-ai-agents-wallets-id/" target="_blank" rel="noopener noreferrer">Cloudflare launches a permanent ID tool and wallet for AI shopping agents</a>
+              <span class="source">Fortune</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-12" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-12" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Persistent identity for shopping agents</li><li>Transaction and authentication layer</li><li>Agent-commerce infrastructure</li></ul>
+  <div class="tags"><span class="tag">Infrastructure</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-15">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.fastcompany.com/91577272/jacobin-conjecture-anthropic-ai-levent-alpoge" target="_blank" rel="noopener noreferrer">Claude Fable 5 disproves the 87-year-old Jacobian Conjecture</a>
+              <span class="source">Fast Company</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-15" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-15" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Extraordinary mathematics claim</li><li>Requires rigorous expert confirmation</li><li>High misinformation risk without proof</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-18">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://techcrunch.com/2026/08/07/cloudflare-launches-kitesurf-a-browser-built-for-ai-agents/" target="_blank" rel="noopener noreferrer">Cloudflare launches Browser for AI Agents</a>
+              <span class="source">TechCrunch</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-18" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-18" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Browser environment for agents</li><li>Enables web-task automation</li><li>Security and authorization implications</li></ul>
+  <div class="tags"><span class="tag">Infrastructure</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-21">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://openai.com/index/chatgpt-for-academic-researchers/" target="_blank" rel="noopener noreferrer">OpenAI opens latest ChatGPT models to 100,000 academic researchers — free</a>
+              <span class="source">OpenAI</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col1-21" class="tip-toggle">
+<label for="tip-c2-migrate-live-col1-21" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Free research access program</li><li>Expands academic model use</li><li>Potentially strengthens research ecosystem</li></ul>
+  <div class="tags"><span class="tag">Innovation</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-1">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.forbes.com/sites/tylerroush/2026/08/10/mark-zuckerberg-outlines-ai-vision-in-new-manifesto-heres-what-he-says/" target="_blank" rel="noopener noreferrer">Zuckerberg Calls For More AI Oversight In New Manifesto</a>
+              <span class="source">Forbes</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-1" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-1" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Meta leadership policy position</li><li>Oversight debate shifts</li><li>Review the original manifesto</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-4">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.tomshardware.com/tech-industry/data-centers/over-70-percent-of-americans-oppose-ai-data-centers-us-protests-intensify-as-more-arrests-are-being-made-almost-40-arrested-this-year-in-backlash-to-ai-factory-buildout" target="_blank" rel="noopener noreferrer">Over 70% of Americans oppose AI data centers; US protests intensify as more arrests are being made</a>
+              <span class="source">Tom&#x27;s Hardware</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-4" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-4" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Community resistance intensifies</li><li>Energy, water, and land-use concerns</li><li>Permitting risk for build-outs</li></ul>
+  <div class="tags"><span class="tag">Infrastructure</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-7">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.engadget.com/2233656/an-openclaw-agent-reportedly-hacked-a-gym-booking-system-and-kicked-soemone-off-a-waiting-list/" target="_blank" rel="noopener noreferrer">An OpenClaw agent reportedly hacked a gym&#x27;s booking system and kicked someone off a waiting list</a>
+              <span class="source">Engadget</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-7" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-7" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Agent allegedly accessed booking system</li><li>Real-world authorization failure</li><li>Incident details need verification</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-10">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://techcrunch.com/2026/08/07/chinese-ai-model-kimi-escaped-its-cybersecurity-testing-environment-researchers-say/" target="_blank" rel="noopener noreferrer">Kimi K3 is the 4th major model (after OpenAI, Anthropic, Meta) to escape, exploit, ...</a>
+              <span class="source">TechCrunch</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-10" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-10" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Agent/model containment concern</li><li>Claimed exploit behavior</li><li>Needs reproducible technical evidence</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-13">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://siliconangle.com/2026/08/03/crowdstrike-finds-ai-systems-direct-attack-exploit-windows-shrink/" target="_blank" rel="noopener noreferrer">CROWDSTRIKE: AI SYSTEMS ARE NOW A DIRECT ATTACK TARGET, NOT JUST AN ATTACKER&#x27;S TOOL</a>
+              <span class="source">SiliconANGLE</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-13" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-13" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>AI systems become defended assets</li><li>Attackers target models and data</li><li>Shifts enterprise security posture</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-16">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://leginfo.legislature.ca.gov/faces/billNavClient.xhtml?bill_id=202320240SB942" target="_blank" rel="noopener noreferrer">CALIFORNIA&#x27;S AI TRANSPARENCY ACT now in effect — generative-AI providers must embed provenance data, offer free detection tool</a>
+              <span class="source">CA Legislature</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-16" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-16" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Provenance-data obligations</li><li>Detection-tool requirement</li><li>Generative-AI compliance deadline</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-19">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.forbes.com.au/news/innovation/hundreds-of-anthropic-chatbot-transcripts-showed-up-in-google-search/?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer">Your Claude chats are now searchable on Google</a>
+              <span class="source">Forbes Australia</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col2-19" class="tip-toggle">
+<label for="tip-c2-migrate-live-col2-19" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Potential user-privacy concern</li><li>Search-indexing exposure claim</li><li>Requires careful verification</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col3-1">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://finance.yahoo.com/technology/ai/articles/tokenomics-not-pricing-problem-architecture-212120824.html" target="_blank" rel="noopener noreferrer">Tokenomics is not a pricing problem - it&#x27;s an architecture problem</a>
+              <span class="source">Forbes</span>
+              <input type="checkbox" id="tip-c2-migrate-live-col3-1" class="tip-toggle">
+<label for="tip-c2-migrate-live-col3-1" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Argument about system design</li><li>Not a conventional AI-news item</li><li>Likely low editorial priority</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
           </div>
 
         </div>
-
-        <!-- Column 3 -->
         <div class="wire-col">
-
-          <div class="story" data-story-id="story-11">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-11" target="_blank" rel="noopener noreferrer">New benchmark suite aims to measure real-world agent reliability</a>
-                <span class="source">VentureBeat</span>
-                <input type="checkbox" id="tip-11" class="tip-toggle">
-                <label for="tip-11" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Benchmark focuses on multi-step task completion</li>
-                    <li>Early results show wide gaps between models</li>
-                    <li>Suite released as open source</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Research</span><span class="tag">Models</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-1">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.techzine.eu/news/analytics/143552/nvidia-is-building-nemotron-4-with-at-least-1-trillion-parameters/" target="_blank" rel="noopener noreferrer">Nvidia&#x27;s Next Nemotron Reportedly Targeting 1 Trillion+ Parameters</a>
+              <span class="source">Techzine</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-1" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-1" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Reported frontier-model scale-up</li><li>More demand for compute</li><li>Competitive open-model implications</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-12">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-12" target="_blank" rel="noopener noreferrer">Government agency pilots AI system for processing public records requests</a>
-                <span class="source">Reuters</span>
-                <input type="checkbox" id="tip-12" class="tip-toggle">
-                <label for="tip-12" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Pilot limited to one department for now</li>
-                    <li>Human staff review all outputs before release</li>
-                    <li>Full rollout decision expected next year</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Governance</span><span class="tag">Applications</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-4">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://venturebeat.com/orchestration/spacexais-grok-bot-turns-agents-into-persistent-digital-coworkers-that-can-operate-your-apps-for-120-per-month" target="_blank" rel="noopener noreferrer">SpaceXAI&#x27;s Grok Bot turns agents into persistent digital coworkers that can operate your apps for $120-per-month</a>
+              <span class="source">VentureBeat</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-4" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-4" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Agents work across user apps</li><li>Subscription-priced digital coworkers</li><li>Raises permissions and reliability questions</li></ul>
+  <div class="tags"><span class="tag">Innovation</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-13">
-            <div class="story-body">
-              <div class="story-img" role="img" aria-label="Story image placeholder"></div>
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-13" target="_blank" rel="noopener noreferrer">Data center operator announces expansion amid rising power demand concerns</a>
-                <span class="source">Bloomberg</span>
-                <input type="checkbox" id="tip-13" class="tip-toggle">
-                <label for="tip-13" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Expansion adds capacity across two sites</li>
-                    <li>Local utilities flag grid capacity questions</li>
-                    <li>Company commits to efficiency targets</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Infrastructure</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-7">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.reuters.com/business/microsoft-plans-unveil-its-new-maia-300-ai-chip-this-fall-information-reports-2026-08-10/" target="_blank" rel="noopener noreferrer">Microsoft Unveils its New AI Chip</a>
+              <span class="source">Reuters</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-7" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-7" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Custom silicon announcement</li><li>Cloud AI cost and capacity focus</li><li>Competition with NVIDIA accelerates</li></ul>
+  <div class="tags"><span class="tag">Infrastructure</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-14">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-14" target="_blank" rel="noopener noreferrer">Healthcare system expands AI-assisted triage tool to additional hospitals</a>
-                <span class="source">STAT</span>
-                <input type="checkbox" id="tip-14" class="tip-toggle">
-                <label for="tip-14" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Tool flags urgent cases for clinician review</li>
-                    <li>Independent audit of accuracy planned</li>
-                    <li>Expansion follows a year-long trial</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Applications</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-10">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.unite.ai/xai-ships-grok-imagine-image-2-0-with-precise-editing-and-a-top-arena-ranking/" target="_blank" rel="noopener noreferrer">Grok Imagine Image 2.0: 5 star reviews</a>
+              <span class="source">Unite.AI</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-10" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-10" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Image-generation product update</li><li>Early review-driven discovery item</li><li>Validate performance claims independently</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
           </div>
 
-          <div class="story" data-story-id="story-15">
-            <div class="story-body">
-              <div class="story-text">
-                <a class="headline" href="https://example.com/story-15" target="_blank" rel="noopener noreferrer">Analysts debate whether current AI infrastructure spending pace is sustainable</a>
-                <span class="source">The Economist</span>
-                <input type="checkbox" id="tip-15" class="tip-toggle">
-                <label for="tip-15" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
-                <div class="tooltip">
-                  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
-                  <ul>
-                    <li>Spending has grown faster than revenue at several firms</li>
-                    <li>Analysts split on near-term correction risk</li>
-                    <li>Capex guidance due next earnings cycle</li>
-                  </ul>
-                  <div class="tags"><span class="tag">Business</span><span class="tag">Infrastructure</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="story" data-story-id="migrate-live-col1-13">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.axios.com/2026/08/01/deepseek-model-cheap-ai-price-war" target="_blank" rel="noopener noreferrer">DEEPSEEK&#x27;S NEW V4 FLASH CODING MODEL UNDERCUTS RIVALS ON PRICE — ACCELERATES AI&#x27;S &quot;RACE TO ZERO&quot;</a>
+              <span class="source">Axios</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-13" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-13" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Low-cost coding-model positioning</li><li>Competitive pricing pressure</li><li>“Race to zero” narrative</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
           </div>
 
-          <!-- AD ZONE 3 — mid right column, placed after the 5th (last) sample headline in this column, ~3 headline-heights. Dormant = zero footprint. -->
-          <div class="ad-zone ad-zone--column" id="ad-zone-3" data-ad-zone="3"></div>
+          <div class="story" data-story-id="migrate-live-col1-16">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://9to5google.com/2026/07/31/gemini-ai-studio-app/" target="_blank" rel="noopener noreferrer">GOOGLE CANCELS AI STUDIO MOBILE APP despite 800K preorders — folding features into Gemini instead</a>
+              <span class="source">9to5Google</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-16" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-16" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Product reportedly discontinued</li><li>Features folded into Gemini</li><li>Consolidates Google AI interface strategy</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-19">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://siliconangle.com/2026/08/02/openais-astra-solves-10-long-open-math-problems-publishes-proofs/" target="_blank" rel="noopener noreferrer">OpenAI&#x27;s unreleased Astra model solves 10 decade-old math problems</a>
+              <span class="source">SiliconANGLE</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-19" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-19" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Claimed mathematical capability leap</li><li>Unreleased-model reporting</li><li>Needs direct evidence and expert review</li></ul>
+  <div class="tags"><span class="tag">Models</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col1-22">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://openai.com/index/health-in-chatgpt/" target="_blank" rel="noopener noreferrer">Health-In-ChatGPT launches: connect 25+ medical chart apps and Apple Health</a>
+              <span class="source">OpenAI</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col1-22" class="tip-toggle">
+<label for="tip-c3-migrate-live-col1-22" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Health-focused ChatGPT feature</li><li>Supports medical-chart integrations</li><li>Privacy and eligibility are central</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-2">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.axios.com/2026/08/10/openai-gpt-astra-restrictions-safety-hacking-defenders" target="_blank" rel="noopener noreferrer">OpenAI unveils GPT-5.6-Cyber to help prepare for AI cyberattacks</a>
+              <span class="source">Axios</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-2" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-2" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Cybersecurity-oriented model</li><li>Defensive preparedness framing</li><li>Dual-use safeguards matter</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-5">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.securityweek.com/openais-upcoming-astra-model-raises-autonomous-cyberattack-concerns/" target="_blank" rel="noopener noreferrer">OpenAI&#x27;s Upcoming Astra Model Raises Autonomous Cyberattack Concerns</a>
+              <span class="source">SecurityWeek</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-5" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-5" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Frontier model risk focus</li><li>Autonomous capability allegations</li><li>Requires primary-source confirmation</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-8">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.cnn.com/2026/08/09/tech/ai-cybersecurity-people" target="_blank" rel="noopener noreferrer">AI isn&#x27;t the biggest cybersecurity problem. People are</a>
+              <span class="source">CNN</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-8" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-8" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Human error exceeds AI risk in many cases</li><li>Social engineering remains central</li><li>Contextual cybersecurity analysis</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-11">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.securityweek.com/meta-ai-hacked-external-systems-during-cybersecurity-testing/" target="_blank" rel="noopener noreferrer">OpenAI, then Anthropic, now Meta admits Hacking</a>
+              <span class="source">SecurityWeek</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-11" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-11" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Major labs linked to security claims</li><li>May involve testing or incidents</li><li>Verify each company’s statement separately</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-14">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.engadget.com/2225792/xai-challenging-new-minnesota-law-banning-nudify-apps/" target="_blank" rel="noopener noreferrer">xAI says it has &quot;no practical choice&quot; but to restrict Grok Imagine after losing challenge to Minnesota&#x27;s &quot;nudify app&quot; ban</a>
+              <span class="source">Engadget</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-14" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-14" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Nudify-content restrictions</li><li>State-law compliance pressure</li><li>Product-safety and moderation issue</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-17">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.axios.com/2026/07/30/judge-pentagon-case-worse-anthropic" target="_blank" rel="noopener noreferrer">JUDGE: Trump admin hasn&#x27;t justified its ban on Anthropic AI — calls DoD&#x27;s rationale &#x27;really troubling&#x27;</a>
+              <span class="source">Axios</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-17" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-17" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Legal challenge to government action</li><li>Court doubts stated rationale</li><li>Implications for AI procurement</li></ul>
+  <div class="tags"><span class="tag">Governance</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col2-20">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.interpol.int/News-and-Events/News/2026/INTERPOL-report-finds-AI-linked-to-more-than-half-of-cybercrime-in-Africa" target="_blank" rel="noopener noreferrer">AI now drives 55% of cybercrime across Africa</a>
+              <span class="source">INTERPOL</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col2-20" class="tip-toggle">
+<label for="tip-c3-migrate-live-col2-20" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Regional cybercrime assessment</li><li>AI-enabled threat acceleration</li><li>Review methodology and definition</li></ul>
+  <div class="tags"><span class="tag">Security</span></div>
+</div>
+            </div></div>
+          </div>
+
+          <div class="story" data-story-id="migrate-live-col3-2">
+            <div class="story-body"><div class="story-text">
+              <a class="headline" href="https://www.googlecloudpresscorner.com/2026-08-12-Ryanair-and-Google-Cloud-Announce-Five-Year-Data-and-AI-Partnership" target="_blank" rel="noopener noreferrer">Ryanair and Google Cloud Announce Five-Year Data and AI Partnership</a>
+              <span class="source">Google Cloud</span>
+              <input type="checkbox" id="tip-c3-migrate-live-col3-2" class="tip-toggle">
+<label for="tip-c3-migrate-live-col3-2" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>
+<div class="tooltip">
+  <div class="tooltip-head"><img src="CypherFavicon.jpg" alt=""><strong>Here's the summary</strong></div>
+  <ul><li>Airline data-and-AI agreement</li><li>Enterprise deployment case</li><li>Long-term cloud relationship</li></ul>
+  <div class="tags"><span class="tag">Business</span></div>
+</div>
+            </div></div>
+          </div>
 
         </div>
-
       </div>
     </section>
-
-  </main>
+</main>
 
   <footer>
     <div class="wrap">
