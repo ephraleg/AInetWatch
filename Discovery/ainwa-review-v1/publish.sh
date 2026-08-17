@@ -115,4 +115,4 @@ fi
 
 echo "[AINWA] Credentials present. Deploying dist/ to Cloudflare Pages..."
 cd "$SCRIPT_DIR"
-wrangler pages deploy dist --project-name ainetwatch
+npx wrangler pages deploy dist --project-name ainetwatch
