@@ -325,6 +325,7 @@ sources:
   category: Technology News
   role: Original Reporting
   access: mixed
+  feed_url: https://www.technologyreview.com/feed/
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -363,6 +364,7 @@ sources:
   category: Cybersecurity
   role: Original Reporting
   access: free
+  feed_url: https://www.darkreading.com/rss.xml
   enabled: true
   priority: medium
   citation_allowed: conditional
@@ -375,6 +377,7 @@ sources:
   category: Research / Academic
   role: Original Reporting
   access: free
+  feed_url: https://spectrum.ieee.org/feeds/feed.rss
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -387,6 +390,7 @@ sources:
   category: Policy / Governance
   role: Original Reporting
   access: free
+  feed_url: https://techpolicy.press/rss/feed.xml
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -423,6 +427,7 @@ sources:
   category: Technology News
   role: Original Reporting
   access: mixed
+  feed_url: https://www.404media.co/rss/
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -885,6 +890,7 @@ sources:
   category: Technology News
   role: Original Reporting
   access: unknown
+  feed_url: https://www.theregister.com/headlines.atom
   enabled: true
   priority: medium
   citation_allowed: 'yes'
@@ -933,6 +939,7 @@ sources:
   category: Technology News
   role: Original Reporting
   access: unknown
+  feed_url: https://the-decoder.com/feed/
   enabled: true
   priority: medium
   citation_allowed: 'yes'
