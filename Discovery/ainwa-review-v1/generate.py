@@ -2,7 +2,7 @@
 """AINWA-005/006 Candidate Generation v1
 
 Pipeline position:
-  filtered-discovery.json → Claude selection (max 17) → Grok/Gemini advisory → candidate-queue.json
+  filtered-discovery.json → preselect (≤60) → Claude selection (max 30) → diversity walk → candidate-queue.json (max 20)
 
 Does NOT write approved-queue.json or trigger any approval action.
 
@@ -35,22 +35,25 @@ FILTERED_FILE = DATA_DIR / "filtered-discovery.json"
 APPROVED_FILE = DATA_DIR / "approved-queue.json"
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
 
-MAX_CANDIDATES = 17
-RANKED_RESPONSE_LIMIT = 30  # max stories Claude may return; post-processing caps at MAX_CANDIDATES
+MAX_CANDIDATES = 20          # hard ceiling on final shortlist (target 15–20)
+RANKED_RESPONSE_LIMIT = 30  # max stories Claude may return; diversity walk caps at MAX_CANDIDATES
 CLAUDE_TIMEOUT_SECONDS = 180  # socket timeout for Claude API calls; covers larger ranked-list responses
 CLAUDE_MAX_OUTPUT_TOKENS = 16000  # headroom for up to 30 enriched story objects
 CATEGORIES = ("Models", "Research", "Security", "Governance", "Business", "Infrastructure", "Applications")
 
-# Sources that may contribute at most one story to the shortlist.
-# Reuters and The Information are configured-but-inactive (no feed_url yet);
-# they are included here so the cap applies automatically once they become active.
-ANCHOR_SOURCES: frozenset[str] = frozenset({
-    "Reuters",
-    "The Information",
-    "TechCrunch",
-    "BleepingComputer",
-    "arXiv",
-})
+# Preselection: deterministic source-aware shortlist sent to Claude.
+PRESELECT_MAX = 60     # global ceiling on items sent to Claude
+PRESELECT_TARGET = 50  # soft target; per-source caps fill up to this naturally
+
+# Per-source preselection ceilings by role (applied before global cap).
+SOURCE_CAP_ORIGINAL_REPORTING = 8
+SOURCE_CAP_PRIMARY_SOURCE = 6
+SOURCE_CAP_MIXED = 4
+SOURCE_CAP_DISCOVERY_ONLY = 3
+
+# Diversity walk: post-Claude per-source caps for final shortlist.
+DIVERSITY_PER_SOURCE_MAX = 3   # any source except Discovery Only
+DIVERSITY_DISCOVERY_ONLY_MAX = 1  # Discovery Only sources contribute at most 1 slot
 
 CARRYOVER_DAYS = 3  # unresolved candidates from prior runs survive this many days
 
@@ -171,22 +174,98 @@ Candidates:
 
 
 # ---------------------------------------------------------------------------
-# Anchor-cap walk (deterministic post-processing reducer)
+# Deterministic scoring and preselection
 # ---------------------------------------------------------------------------
 
-def _apply_anchor_cap_walk(
+def _score_item(item: dict) -> float:
+    """Deterministic editorial score in [0.0, 1.0] for preselection ordering."""
+    role = item.get("source_role", "")
+    role_score = {
+        "Original Reporting": 1.00,
+        "Primary Source": 0.85,
+        "Mixed": 0.55,
+        "Discovery Only": 0.25,
+    }.get(role, 0.20)
+
+    priority = item.get("source_priority", "")
+    priority_score = {"high": 1.00, "medium": 0.55, "low": 0.25}.get(priority, 0.25)
+
+    age_hours = item.get("age_hours")
+    try:
+        recency_score = max(0.0, 1.0 - float(age_hours) / 72.0)
+    except (TypeError, ValueError):
+        recency_score = 0.0
+
+    citation = item.get("source_citation_allowed", "")
+    citation_score = {"yes": 1.00, "conditional": 0.60}.get(citation, 0.00)
+
+    raw = (
+        0.40 * role_score
+        + 0.20 * priority_score
+        + 0.30 * recency_score
+        + 0.10 * citation_score
+    )
+    return min(1.0, raw)
+
+
+def _source_role_cap(source_role: str) -> int:
+    """Return the preselection ceiling for a source based on its editorial role."""
+    return {
+        "Original Reporting": SOURCE_CAP_ORIGINAL_REPORTING,
+        "Primary Source": SOURCE_CAP_PRIMARY_SOURCE,
+        "Mixed": SOURCE_CAP_MIXED,
+        "Discovery Only": SOURCE_CAP_DISCOVERY_ONLY,
+    }.get(source_role, SOURCE_CAP_PRIMARY_SOURCE)
+
+
+def preselect_candidates(items: list[dict]) -> list[dict]:
+    """Return a diverse shortlist of at most PRESELECT_MAX items for Claude.
+
+    Phase 1: score all items; sort descending (tie-break: item_id lexicographic).
+    Phase 2: per-source ceiling by role — each source contributes at most
+             _source_role_cap(role) items.
+    Phase 3: global ceiling — keep at most PRESELECT_MAX items total.
+    """
+    scored = sorted(
+        items,
+        key=lambda i: (-_score_item(i), i.get("item_id") or ""),
+    )
+
+    per_source: dict[str, int] = {}
+    selected: list[dict] = []
+    for item in scored:
+        src = item.get("source_name", "")
+        role = item.get("source_role", "")
+        cap = _source_role_cap(role)
+        count = per_source.get(src, 0)
+        if count >= cap:
+            continue
+        per_source[src] = count + 1
+        selected.append(item)
+        if len(selected) >= PRESELECT_MAX:
+            break
+
+    return selected
+
+
+# ---------------------------------------------------------------------------
+# Diversity walk (deterministic post-Claude reducer)
+# ---------------------------------------------------------------------------
+
+def _diversity_walk(
     ranked: list[dict],
     item_lookup: dict[int, dict],
 ) -> list[dict]:
-    """Walk ranked in order, enforcing anchor cap and MAX_CANDIDATES limit.
+    """Walk Claude's ranked list, enforcing source diversity and MAX_CANDIDATES.
 
-    Accepts the first qualifying story per anchor source; skips subsequent
-    stories from the same anchor source without replacement. Non-anchor stories
-    are accepted normally. Stops when MAX_CANDIDATES is reached or the list
-    is exhausted. item_lookup is keyed by 1-based sequence integer.
+    Accepts items in Claude's priority order. Skips any item from a source that
+    has already reached its diversity cap (DIVERSITY_DISCOVERY_ONLY_MAX for
+    Discovery Only sources, DIVERSITY_PER_SOURCE_MAX for all others). Stops when
+    MAX_CANDIDATES is reached or the list is exhausted. Never pads with fillers.
+    item_lookup is keyed by 1-based sequence integer.
     """
     accepted: list[dict] = []
-    anchor_seen: set[str] = set()
+    source_counts: dict[str, int] = {}
     for sel in ranked:
         if len(accepted) >= MAX_CANDIDATES:
             break
@@ -194,15 +273,23 @@ def _apply_anchor_cap_walk(
             seq = int(sel.get("item_id") or 0)
         except (TypeError, ValueError):
             seq = 0
-        src_name = item_lookup.get(seq, {}).get("source_name", "")
-        if src_name in ANCHOR_SOURCES:
-            if src_name in anchor_seen:
-                print(
-                    f"[AINWA] Anchor walk: skipping duplicate {src_name!r} (index {seq}).",
-                    file=sys.stderr,
-                )
-                continue
-            anchor_seen.add(src_name)
+        item = item_lookup.get(seq, {})
+        src = item.get("source_name", "")
+        role = item.get("source_role", "")
+        cap = (
+            DIVERSITY_DISCOVERY_ONLY_MAX
+            if role == "Discovery Only"
+            else DIVERSITY_PER_SOURCE_MAX
+        )
+        count = source_counts.get(src, 0)
+        if count >= cap:
+            print(
+                f"[AINWA] Diversity walk: skipping {src!r} (index {seq}), "
+                f"cap {cap} reached.",
+                file=sys.stderr,
+            )
+            continue
+        source_counts[src] = count + 1
         accepted.append(sel)
     return accepted
 
@@ -298,42 +385,21 @@ def _carryover_candidates(existing: list[dict], cutoff_ts: datetime) -> list[dic
 def build_selection_prompt(
     items: list[dict], excluded_urls: set[str]
 ) -> tuple[list[dict], str]:
-    """Build the Claude selection prompt and return (eligible_items, prompt_text).
+    """Build the Claude selection prompt and return (preselected_items, prompt_text).
 
-    Candidates are presented in labeled sections — one per anchor source, then a
-    non-anchor section — for editorial clarity. Global 1-based integer indices are
-    assigned across the reordered list (anchor sections first, then non-anchor).
-    Claude returns a single flat ranked array; post-processing (_apply_anchor_cap_walk)
-    enforces the one-per-anchor limit and the MAX_CANDIDATES cap deterministically.
+    Eligible items are scored deterministically and narrowed to PRESELECT_MAX
+    via per-source role ceilings before being sent to Claude. Claude receives a
+    flat numbered list in preselection score order and returns a flat ranked array.
+    Post-processing (_diversity_walk) enforces per-source diversity caps and
+    the MAX_CANDIDATES ceiling deterministically.
     """
     eligible = [i for i in items if i.get("canonical_url") not in excluded_urls]
     categories_str = ", ".join(CATEGORIES)
 
-    # Fixed display order; must cover every member of ANCHOR_SOURCES.
-    anchor_order = ["Reuters", "The Information", "TechCrunch", "BleepingComputer", "arXiv"]
+    preselected = preselect_candidates(eligible)
 
-    # Partition into per-source buckets, preserving relative order within each.
-    by_anchor: dict[str, list[dict]] = {src: [] for src in anchor_order}
-    non_anchor: list[dict] = []
-    for item in eligible:
-        src = item.get("source_name", "")
-        if src in by_anchor:
-            by_anchor[src].append(item)
-        elif src in ANCHOR_SOURCES:
-            # Anchor source not in display order — safe fallback so nothing is lost.
-            non_anchor.append(item)
-        else:
-            non_anchor.append(item)
-
-    # Reordered eligible: anchor sections in display order, then non-anchor.
-    # This is the list returned to main(); item_lookup is keyed 1-based from it.
-    reordered: list[dict] = []
-    for src in anchor_order:
-        reordered.extend(by_anchor[src])
-    reordered.extend(non_anchor)
-
-    # Global 1-based index for each item, mirroring main()'s item_lookup construction.
-    item_idx: dict[int, int] = {id(item): seq for seq, item in enumerate(reordered, 1)}
+    # 1-based index over the preselected list (same order as item_lookup in main()).
+    item_idx: dict[int, int] = {id(item): seq for seq, item in enumerate(preselected, 1)}
 
     def _line(item: dict) -> str:
         age = item.get("age_hours")
@@ -345,31 +411,7 @@ def build_selection_prompt(
             f"{item.get('item_title', '').strip()}"
         )
 
-    # Build one block per anchor source section.
-    blocks: list[str] = []
-    for src in anchor_order:
-        src_items = by_anchor[src]
-        header = (
-            f"=== {src} [ANCHOR] ===\n"
-            f"One slot per anchor source. Rank your best {src} pick highest — "
-            f"only the first {src} story in your ranked list enters the shortlist."
-        )
-        body = (
-            "\n".join(_line(it) for it in src_items)
-            if src_items
-            else "(no eligible candidates this run)"
-        )
-        blocks.append(f"{header}\n{body}")
-
-    # Non-anchor section.
-    non_anchor_body = (
-        "\n".join(_line(it) for it in non_anchor)
-        if non_anchor
-        else "(no eligible candidates this run)"
-    )
-    blocks.append(f"=== Non-anchor candidates ===\n{non_anchor_body}")
-
-    candidates_text = "\n\n".join(blocks)
+    candidates_text = "\n".join(_line(it) for it in preselected) if preselected else "(no eligible candidates this run)"
 
     prompt = f"""You are ANWU, the AInetWatch editorial AI. Select the best AI-industry stories \
 from the list below for today's wire.
@@ -382,19 +424,17 @@ Selection criteria (in order of importance):
 5. Non-duplication (prefer stories covering distinct events)
 
 Response rules:
-- Candidates are divided into labeled sections below. Each integer index is globally unique \
-across all sections and maps to exactly one feed record.
-- Rank up to {RANKED_RESPONSE_LIMIT} stories in priority order. Post-processing will accept \
-the first qualifying story per anchor source and fill remaining slots with non-anchor stories \
-until the shortlist reaches {MAX_CANDIDATES}.
-- For anchor sources (Reuters, The Information, TechCrunch, BleepingComputer, arXiv): you may \
-rank multiple stories from the same anchor source — only the first one in your list will enter \
-the shortlist. Rank your best anchor pick for each source highest.
-- Techmeme is Discovery Only and is never an anchor.
+- Each integer index maps to exactly one feed record.
+- Rank up to {RANKED_RESPONSE_LIMIT} stories in priority order. Post-processing will enforce \
+source diversity (at most {DIVERSITY_PER_SOURCE_MAX} per source; at most \
+{DIVERSITY_DISCOVERY_ONLY_MAX} per Discovery Only source) and cap the shortlist at \
+{MAX_CANDIDATES}.
+- You may rank multiple stories from the same source — post-processing will keep only the \
+top-ranked ones within each source's diversity cap.
 - Do not pad with weak stories merely to reach {RANKED_RESPONSE_LIMIT}. Quality over count.
 
 Story fields:
-- item_id: the global integer index from the candidate list (e.g. 3)
+- item_id: the integer index from the candidate list (e.g. 3)
 - brief_headline: AInetWatch-style in ALL CAPS, ≤12 words, punchy and factual
 - public_summary: exactly 3 reader-facing bullets — (1) what happened, (2) why it matters, \
 (3) what changes or who is affected. No internal language. Published verbatim if approved.
@@ -424,7 +464,7 @@ Candidates:
 
 {candidates_text}"""
 
-    return reordered, prompt
+    return preselected, prompt
 
 
 # ---------------------------------------------------------------------------
@@ -597,7 +637,7 @@ def main(argv=None):
     # 1-based integer keys matching the sequence numbers shown in the prompt.
     item_lookup: dict[int, dict] = {i + 1: eligible_items[i] for i in range(len(eligible_items))}
     print(
-        f"[AINWA] {len(eligible_items)} items in prompt after exclusions "
+        f"[AINWA] {len(eligible_items)} items in prompt after exclusions and preselection "
         f"(from {len(items)} filtered).",
         file=sys.stderr,
     )
@@ -623,8 +663,8 @@ def main(argv=None):
 
     print(f"[AINWA] Claude ranked {len(selections)} candidates.", file=sys.stderr)
 
-    selections = _apply_anchor_cap_walk(selections, item_lookup)
-    print(f"[AINWA] After anchor-cap walk: {len(selections)} candidates.", file=sys.stderr)
+    selections = _diversity_walk(selections, item_lookup)
+    print(f"[AINWA] After diversity walk: {len(selections)} candidates.", file=sys.stderr)
 
     # --- Build shortlist JSON for advisors ---
     # item_id here is the integer sequence number; advisors key their response by it.

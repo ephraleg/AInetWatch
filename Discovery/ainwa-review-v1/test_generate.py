@@ -41,7 +41,7 @@ import generate
 
 def _item(item_id="raw-SRC-001-aabbccdd", source_name="Example News",
           source_role="Original Reporting", source_citation_allowed="yes",
-          source_reliability="high", age_hours=2.0,
+          source_reliability="high", source_priority="high", age_hours=2.0,
           item_title="Example AI story title",
           canonical_url="https://example.com/story",
           fetched_at="2026-08-13T19:53:22Z") -> dict:
@@ -51,6 +51,7 @@ def _item(item_id="raw-SRC-001-aabbccdd", source_name="Example News",
         "source_role": source_role,
         "source_citation_allowed": source_citation_allowed,
         "source_reliability": source_reliability,
+        "source_priority": source_priority,
         "age_hours": age_hours,
         "item_title": item_title,
         "canonical_url": canonical_url,
@@ -481,71 +482,69 @@ class TestBriefHeadline(unittest.TestCase):
         self.assertEqual(candidates[0]["source_resolution"], "unresolved")
 
 
-class TestAnchorCapWalk(unittest.TestCase):
+class TestDiversityWalk(unittest.TestCase):
 
-    def _anchor_item(self, src_name, item_id):
+    def _make_item(self, src_name, role="Original Reporting", idx=0):
         return {
-            "item_id": item_id,
+            "item_id": f"raw-SRC-001-{src_name[:4]}{idx:04x}",
             "source_name": src_name,
-            "source_role": "Original Reporting",
+            "source_role": role,
             "source_citation_allowed": "yes",
             "source_reliability": "high",
+            "source_priority": "high",
             "age_hours": 1.0,
-            "item_title": f"{src_name} story",
-            "canonical_url": f"https://example.com/{item_id}",
+            "item_title": f"{src_name} story {idx}",
+            "canonical_url": f"https://example.com/{src_name}-{idx}",
             "fetched_at": "2026-08-13T10:00:00Z",
         }
 
-    def test_first_anchor_accepted_duplicate_skipped(self):
-        tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-aaaa0001")
-        tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-aaaa0002")
-        lookup = {1: tc1, 2: tc2}
-        ranked = [{"item_id": 1}, {"item_id": 2}]
-        result = generate._apply_anchor_cap_walk(ranked, lookup)
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["item_id"], 1)
-
-    def test_different_anchor_sources_both_accepted(self):
-        tc = self._anchor_item("TechCrunch", "raw-SRC-018-tc000001")
-        bc = self._anchor_item("BleepingComputer", "raw-SRC-024-bc000001")
-        lookup = {1: tc, 2: bc}
-        ranked = [{"item_id": 1}, {"item_id": 2}]
-        result = generate._apply_anchor_cap_walk(ranked, lookup)
-        self.assertEqual(len(result), 2)
-
-    def test_non_anchor_passes_through(self):
-        non_anchor1 = self._anchor_item("CNBC", "raw-SRC-017-cn000001")
-        non_anchor2 = self._anchor_item("CNBC", "raw-SRC-017-cn000002")
-        lookup = {1: non_anchor1, 2: non_anchor2}
-        ranked = [{"item_id": 1}, {"item_id": 2}]
-        result = generate._apply_anchor_cap_walk(ranked, lookup)
-        self.assertEqual(len(result), 2)
-
     def test_walk_stops_at_max_candidates(self):
-        items = [self._anchor_item("CNBC", f"raw-SRC-017-{i:08x}") for i in range(20)]
+        # Spread across distinct sources so the per-source cap is not the binding constraint
+        items = [self._make_item(f"Source{i}", idx=0) for i in range(30)]
         lookup = {i + 1: items[i] for i in range(len(items))}
-        ranked = [{"item_id": i + 1} for i in range(20)]
-        result = generate._apply_anchor_cap_walk(ranked, lookup)
+        ranked = [{"item_id": i + 1} for i in range(30)]
+        result = generate._diversity_walk(ranked, lookup)
         self.assertEqual(len(result), generate.MAX_CANDIDATES)
 
-    def test_post_skip_stories_fill_remaining_slots(self):
-        tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-tc000001")
-        tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-tc000002")
-        cnbc = self._anchor_item("CNBC", "raw-SRC-017-cn000001")
-        lookup = {1: tc1, 2: tc2, 3: cnbc}
-        # tc2 is a duplicate anchor — it gets skipped; cnbc should still be accepted
-        ranked = [{"item_id": 1}, {"item_id": 2}, {"item_id": 3}]
-        result = generate._apply_anchor_cap_walk(ranked, lookup)
-        self.assertEqual(len(result), 2)
-        self.assertEqual(result[1]["item_id"], 3)
+    def test_discovery_only_source_capped_at_diversity_limit(self):
+        items = [self._make_item("Techmeme", role="Discovery Only", idx=i) for i in range(5)]
+        lookup = {i + 1: items[i] for i in range(5)}
+        ranked = [{"item_id": i + 1} for i in range(5)]
+        result = generate._diversity_walk(ranked, lookup)
+        self.assertEqual(len(result), generate.DIVERSITY_DISCOVERY_ONLY_MAX)
 
-    def test_no_filler_added(self):
-        tc1 = self._anchor_item("TechCrunch", "raw-SRC-018-fill0001")
-        tc2 = self._anchor_item("TechCrunch", "raw-SRC-018-fill0002")
-        lookup = {1: tc1, 2: tc2}
-        ranked = [{"item_id": 1}, {"item_id": 2}]
-        result = generate._apply_anchor_cap_walk(ranked, lookup)
-        self.assertEqual(len(result), 1)
+    def test_regular_source_capped_at_per_source_max(self):
+        items = [self._make_item("TechCrunch", idx=i) for i in range(10)]
+        lookup = {i + 1: items[i] for i in range(10)}
+        ranked = [{"item_id": i + 1} for i in range(10)]
+        result = generate._diversity_walk(ranked, lookup)
+        self.assertEqual(len(result), generate.DIVERSITY_PER_SOURCE_MAX)
+
+    def test_different_sources_each_get_their_cap(self):
+        tc = [self._make_item("TechCrunch", idx=i) for i in range(5)]
+        bc = [self._make_item("BleepingComputer", idx=i) for i in range(5)]
+        all_items = tc + bc
+        lookup = {i + 1: all_items[i] for i in range(len(all_items))}
+        ranked = [{"item_id": i + 1} for i in range(len(all_items))]
+        result = generate._diversity_walk(ranked, lookup)
+        tc_count = sum(1 for r in result if lookup[r["item_id"]]["source_name"] == "TechCrunch")
+        bc_count = sum(1 for r in result if lookup[r["item_id"]]["source_name"] == "BleepingComputer")
+        self.assertLessEqual(tc_count, generate.DIVERSITY_PER_SOURCE_MAX)
+        self.assertLessEqual(bc_count, generate.DIVERSITY_PER_SOURCE_MAX)
+
+    def test_skipped_stories_do_not_block_other_sources(self):
+        tc = [self._make_item("TechCrunch", idx=i) for i in range(generate.DIVERSITY_PER_SOURCE_MAX + 1)]
+        cnbc = self._make_item("CNBC", idx=0)
+        all_items = tc + [cnbc]
+        lookup = {i + 1: all_items[i] for i in range(len(all_items))}
+        ranked = [{"item_id": i + 1} for i in range(len(all_items))]
+        result = generate._diversity_walk(ranked, lookup)
+        src_names = [lookup[r["item_id"]]["source_name"] for r in result]
+        self.assertIn("CNBC", src_names)
+        self.assertEqual(src_names.count("TechCrunch"), generate.DIVERSITY_PER_SOURCE_MAX)
+
+    def test_no_filler_added_when_input_empty(self):
+        self.assertEqual(generate._diversity_walk([], {}), [])
 
 
 class TestCarryoverMerge(unittest.TestCase):
@@ -636,72 +635,49 @@ class TestCarryoverMerge(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Prompt section layout tests
+# Prompt format tests
 # ---------------------------------------------------------------------------
 
-class TestPromptSections(unittest.TestCase):
-    """build_selection_prompt presents candidates in labeled source sections."""
+class TestPromptFormat(unittest.TestCase):
+    """build_selection_prompt produces a flat numbered list via preselection."""
 
-    def _anchor_item(self, src, url_suffix, **kwargs):
-        return _item(source_name=src, canonical_url=f"https://example.com/{url_suffix}", **kwargs)
+    def test_items_numbered_sequentially_from_1(self):
+        items = [_item(canonical_url=f"https://example.com/{i}") for i in range(3)]
+        eligible, prompt = generate.build_selection_prompt(items, excluded_urls=set())
+        for i in range(1, len(eligible) + 1):
+            self.assertIn(f"{i}. [", prompt)
 
-    def test_anchor_items_appear_in_their_named_section(self):
-        tc = self._anchor_item("TechCrunch", "tc1", item_title="TC Story")
-        cnbc = self._anchor_item("CNBC", "cnbc1", item_title="CNBC Story")
-        eligible, prompt = generate.build_selection_prompt([tc, cnbc], excluded_urls=set())
-        tc_idx = next(i + 1 for i, it in enumerate(eligible) if it is tc)
-        tc_section_start = prompt.index('=== TechCrunch [ANCHOR] ===')
-        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
-        tc_line_pos = prompt.index(f"{tc_idx}. [TechCrunch")
-        self.assertGreater(tc_line_pos, tc_section_start)
-        self.assertLess(tc_line_pos, non_anchor_start)
+    def test_excluded_url_not_in_prompt(self):
+        excluded = "https://example.com/excluded"
+        include = _item(item_id="raw-SRC-001-inc", canonical_url="https://example.com/include",
+                        item_title="Included Story")
+        excl = _item(item_id="raw-SRC-001-exc", canonical_url=excluded, item_title="Excluded Story")
+        _, prompt = generate.build_selection_prompt([include, excl], excluded_urls={excluded})
+        self.assertNotIn("Excluded Story", prompt)
+        self.assertIn("Included Story", prompt)
 
-    def test_non_anchor_items_appear_in_non_anchor_section(self):
-        tc = self._anchor_item("TechCrunch", "tc1")
-        cnbc = self._anchor_item("CNBC", "cnbc1", item_title="CNBC Story")
-        eligible, prompt = generate.build_selection_prompt([tc, cnbc], excluded_urls=set())
-        cnbc_idx = next(i + 1 for i, it in enumerate(eligible) if it is cnbc)
-        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
-        cnbc_line_pos = prompt.index(f"{cnbc_idx}. [CNBC")
-        self.assertGreater(cnbc_line_pos, non_anchor_start)
+    def test_empty_eligible_shows_placeholder(self):
+        _, prompt = generate.build_selection_prompt([], excluded_urls=set())
+        self.assertIn("no eligible candidates this run", prompt)
 
-    def test_anchor_item_index_not_in_non_anchor_section(self):
-        tc = self._anchor_item("TechCrunch", "tc1")
-        eligible, prompt = generate.build_selection_prompt([tc], excluded_urls=set())
-        tc_idx = next(i + 1 for i, it in enumerate(eligible) if it is tc)
-        non_anchor_start = prompt.index('=== Non-anchor candidates ===')
-        non_anchor_text = prompt[non_anchor_start:]
-        self.assertNotIn(f"{tc_idx}. [TechCrunch", non_anchor_text)
+    def test_no_anchor_section_headers_in_prompt(self):
+        tc = _item(source_name="TechCrunch", canonical_url="https://techcrunch.com/1")
+        cnbc = _item(source_name="CNBC", canonical_url="https://cnbc.com/1")
+        _, prompt = generate.build_selection_prompt([tc, cnbc], excluded_urls=set())
+        self.assertNotIn("[ANCHOR]", prompt)
+        self.assertNotIn("Non-anchor candidates", prompt)
 
-    def test_empty_anchor_section_shows_no_candidates_placeholder(self):
-        cnbc = self._anchor_item("CNBC", "cnbc1")
-        _, prompt = generate.build_selection_prompt([cnbc], excluded_urls=set())
-        reuters_start = prompt.index('=== Reuters [ANCHOR] ===')
-        the_info_start = prompt.index('=== The Information [ANCHOR] ===')
-        reuters_block = prompt[reuters_start:the_info_start]
-        self.assertIn("no eligible candidates this run", reuters_block)
-
-    def test_eligible_list_is_reordered_anchor_first_then_non_anchor(self):
-        # Input order: CNBC, TechCrunch, BleepingComputer
-        # Expected reorder: TechCrunch, BleepingComputer, CNBC
-        cnbc = self._anchor_item("CNBC", "cnbc1")
-        tc = self._anchor_item("TechCrunch", "tc1")
-        bc = self._anchor_item("BleepingComputer", "bc1")
-        eligible, _ = generate.build_selection_prompt([cnbc, tc, bc], excluded_urls=set())
-        sources = [it.get("source_name") for it in eligible]
-        self.assertEqual(sources.index("TechCrunch"), 0)
-        self.assertEqual(sources.index("BleepingComputer"), 1)
-        self.assertEqual(sources.index("CNBC"), 2)
-
-    def test_global_indices_match_eligible_list_positions(self):
-        tc = self._anchor_item("TechCrunch", "tc1")
-        cnbc = self._anchor_item("CNBC", "cnbc1")
-        eligible, prompt = generate.build_selection_prompt([cnbc, tc], excluded_urls=set())
-        # Reorder: tc (idx 1), cnbc (idx 2)
-        self.assertIs(eligible[0], tc)
-        self.assertIs(eligible[1], cnbc)
-        self.assertIn("1. [TechCrunch", prompt)
-        self.assertIn("2. [CNBC", prompt)
+    def test_preselection_caps_high_volume_source(self):
+        arxiv_items = [
+            _item(source_name="arXiv", source_role="Primary Source",
+                  source_citation_allowed="conditional", source_priority="high",
+                  canonical_url=f"https://arxiv.org/{i}", age_hours=float(i),
+                  item_id=f"raw-ARX-001-{i:08x}")
+            for i in range(20)
+        ]
+        eligible, _ = generate.build_selection_prompt(arxiv_items, excluded_urls=set())
+        arxiv_count = sum(1 for it in eligible if it.get("source_name") == "arXiv")
+        self.assertLessEqual(arxiv_count, generate.SOURCE_CAP_PRIMARY_SOURCE)
 
 
 class TestIndexSelection(unittest.TestCase):
@@ -869,6 +845,149 @@ class TestQueuedAt(unittest.TestCase):
         }
         result = generate._carryover_candidates([c], cutoff_ts)
         self.assertEqual(len(result), 1)
+
+
+# ---------------------------------------------------------------------------
+# Scoring tests
+# ---------------------------------------------------------------------------
+
+class TestScoring(unittest.TestCase):
+    """_score_item returns deterministic scores based on role, priority, recency, citation."""
+
+    def _si(self, role="Original Reporting", priority="high", age_hours=0.0, citation="yes"):
+        return _item(source_role=role, source_priority=priority, age_hours=age_hours,
+                     source_citation_allowed=citation)
+
+    def test_original_reporting_scores_above_discovery_only(self):
+        self.assertGreater(
+            generate._score_item(self._si(role="Original Reporting")),
+            generate._score_item(self._si(role="Discovery Only")),
+        )
+
+    def test_primary_source_scores_above_discovery_only(self):
+        self.assertGreater(
+            generate._score_item(self._si(role="Primary Source")),
+            generate._score_item(self._si(role="Discovery Only")),
+        )
+
+    def test_high_priority_scores_above_low(self):
+        self.assertGreater(
+            generate._score_item(self._si(priority="high")),
+            generate._score_item(self._si(priority="low")),
+        )
+
+    def test_fresh_item_scores_above_stale(self):
+        self.assertGreater(
+            generate._score_item(self._si(age_hours=0.0)),
+            generate._score_item(self._si(age_hours=60.0)),
+        )
+
+    def test_recency_clamped_at_zero_beyond_72h(self):
+        self.assertEqual(
+            generate._score_item(self._si(age_hours=72.0)),
+            generate._score_item(self._si(age_hours=200.0)),
+        )
+
+    def test_citation_yes_scores_above_no(self):
+        self.assertGreater(
+            generate._score_item(self._si(citation="yes")),
+            generate._score_item(self._si(citation="no")),
+        )
+
+    def test_score_in_valid_range(self):
+        score = generate._score_item(self._si())
+        self.assertGreaterEqual(score, 0.0)
+        self.assertLessEqual(score, 1.0)
+
+
+# ---------------------------------------------------------------------------
+# Preselection tests
+# ---------------------------------------------------------------------------
+
+class TestPreselection(unittest.TestCase):
+    """preselect_candidates applies per-source ceilings and global ceiling."""
+
+    def _arxiv_item(self, i, age=0.0):
+        return _item(source_name="arXiv", source_role="Primary Source",
+                     source_citation_allowed="conditional", source_priority="high",
+                     canonical_url=f"https://arxiv.org/{i}", age_hours=age,
+                     item_id=f"raw-ARX-001-{i:08x}")
+
+    def test_primary_source_capped_at_source_cap(self):
+        items = [self._arxiv_item(i) for i in range(50)]
+        result = generate.preselect_candidates(items)
+        count = sum(1 for it in result if it["source_name"] == "arXiv")
+        self.assertLessEqual(count, generate.SOURCE_CAP_PRIMARY_SOURCE)
+
+    def test_discovery_only_source_capped_at_source_cap(self):
+        items = [
+            _item(source_name="Techmeme", source_role="Discovery Only",
+                  source_citation_allowed="no", source_priority="high",
+                  canonical_url=f"https://techmeme.com/{i}", item_id=f"raw-TM-001-{i:08x}")
+            for i in range(10)
+        ]
+        result = generate.preselect_candidates(items)
+        count = sum(1 for it in result if it["source_name"] == "Techmeme")
+        self.assertLessEqual(count, generate.SOURCE_CAP_DISCOVERY_ONLY)
+
+    def test_global_ceiling_caps_total(self):
+        items = []
+        for s in range(10):
+            for i in range(20):
+                items.append(_item(
+                    source_name=f"Source{s}", source_role="Original Reporting",
+                    canonical_url=f"https://source{s}.com/{i}",
+                    item_id=f"raw-SRC-{s:03d}-{i:08x}",
+                ))
+        result = generate.preselect_candidates(items)
+        self.assertLessEqual(len(result), generate.PRESELECT_MAX)
+
+    def test_higher_scored_items_selected_within_source(self):
+        n = generate.SOURCE_CAP_PRIMARY_SOURCE + 1
+        items = [self._arxiv_item(i, age=float(i * 10)) for i in range(n)]
+        result = generate.preselect_candidates(items)
+        ages = [it["age_hours"] for it in result if it["source_name"] == "arXiv"]
+        self.assertEqual(len(ages), generate.SOURCE_CAP_PRIMARY_SOURCE)
+        self.assertNotIn(float((n - 1) * 10), ages)
+
+    def test_empty_input_returns_empty(self):
+        self.assertEqual(generate.preselect_candidates([]), [])
+
+    def test_small_input_passes_through_unchanged(self):
+        items = [_item(canonical_url=f"https://example.com/{i}") for i in range(3)]
+        result = generate.preselect_candidates(items)
+        self.assertEqual(len(result), 3)
+
+    def test_tie_broken_by_item_id_lexicographic(self):
+        item_a = _item(item_id="raw-SRC-001-aaaa", age_hours=0.0)
+        item_b = _item(item_id="raw-SRC-001-bbbb", age_hours=0.0,
+                       canonical_url="https://example.com/b")
+        result = generate.preselect_candidates([item_b, item_a])
+        self.assertEqual(result[0]["item_id"], "raw-SRC-001-aaaa")
+
+
+# ---------------------------------------------------------------------------
+# Anchor logic removal tests
+# ---------------------------------------------------------------------------
+
+class TestAnchorLogicRemoved(unittest.TestCase):
+    """Confirm all anchor-specific constants and functions are gone."""
+
+    def test_anchor_sources_constant_removed(self):
+        self.assertFalse(hasattr(generate, "ANCHOR_SOURCES"))
+
+    def test_apply_anchor_cap_walk_removed(self):
+        self.assertFalse(hasattr(generate, "_apply_anchor_cap_walk"))
+
+    def test_prompt_has_no_anchor_section_label(self):
+        tc = _item(source_name="TechCrunch", canonical_url="https://techcrunch.com/1")
+        _, prompt = generate.build_selection_prompt([tc], excluded_urls=set())
+        self.assertNotIn("[ANCHOR]", prompt)
+
+    def test_prompt_has_no_non_anchor_section_label(self):
+        cnbc = _item(source_name="CNBC", canonical_url="https://cnbc.com/1")
+        _, prompt = generate.build_selection_prompt([cnbc], excluded_urls=set())
+        self.assertNotIn("Non-anchor candidates", prompt)
 
 
 if __name__ == "__main__":
