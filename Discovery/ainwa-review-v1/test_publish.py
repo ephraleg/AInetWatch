@@ -9,7 +9,8 @@ Checks added here:
   1. editorial_notes and advisory sentinel values absent from built HTML
   2. publish.sh preflight exits 0; --deploy without credentials exits non-zero;
      dummy sentinel token never appears in stdout/stderr
-  3. publish.sh deploy target is dist (never .); allowlist excludes JSON,
+  3. publish.sh deploys the Worker via wrangler.jsonc, whose assets
+     directory is dist (never .); allowlist excludes JSON,
      Python, docs, test, Git, and secret file types
   4. Production-path files contain no /Users/q/AInetWatch reference
 """
@@ -171,10 +172,12 @@ class TestPublishShGates(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestPublishShStaticAnalysis(unittest.TestCase):
-    """publish.sh must target dist/, not ., and its allowlist must exclude
-    sensitive or non-public file types."""
+    """publish.sh must deploy the Worker via wrangler.jsonc, whose assets
+    directory must be dist/ — never the repo root — and its allowlist must
+    exclude sensitive or non-public file types."""
 
     _SCRIPT_TEXT = PUBLISH_SH.read_text(encoding="utf-8")
+    _WRANGLER_JSONC_TEXT = (SCRIPT_DIR / "wrangler.jsonc").read_text(encoding="utf-8")
 
     # File extensions / names that must never be in the deploy allowlist.
     _FORBIDDEN_PATTERNS = (
@@ -182,13 +185,18 @@ class TestPublishShStaticAnalysis(unittest.TestCase):
         ".env", ".git", ".pem", ".key", ".log",
     )
 
-    def test_deploy_target_is_dist_not_dot(self):
-        # The wrangler command must reference `dist` as the deploy directory.
-        self.assertIn("wrangler pages deploy dist", self._SCRIPT_TEXT)
+    def test_deploy_uses_wrangler_deploy_with_config(self):
+        # The Worker deploy command must reference wrangler.jsonc.
+        self.assertIn("wrangler deploy --config wrangler.jsonc", self._SCRIPT_TEXT)
 
-    def test_deploy_never_targets_dot(self):
-        # `wrangler pages deploy .` must not appear anywhere.
+    def test_deploy_never_targets_repo_root_or_bypasses_dist(self):
+        # Neither the old Pages-deploy-of-root form nor a Worker-deploy-of-root
+        # form may appear, and the config it deploys with must scope assets
+        # to dist/, never the repo root.
         self.assertNotIn("wrangler pages deploy .", self._SCRIPT_TEXT)
+        self.assertNotIn("wrangler deploy .", self._SCRIPT_TEXT)
+        self.assertNotIn('"directory": "."', self._WRANGLER_JSONC_TEXT)
+        self.assertIn('"directory": "dist"', self._WRANGLER_JSONC_TEXT)
 
     def test_allowlist_excludes_forbidden_file_types(self):
         # Extract the ALLOWLIST block from the script.
