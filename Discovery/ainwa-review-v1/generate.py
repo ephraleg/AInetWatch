@@ -37,6 +37,7 @@ CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
 
 MAX_CANDIDATES = 17
 RANKED_RESPONSE_LIMIT = 30  # max stories Claude may return; post-processing caps at MAX_CANDIDATES
+CLAUDE_TIMEOUT_SECONDS = 180  # socket timeout for Claude API calls; covers larger ranked-list responses
 CATEGORIES = ("Models", "Research", "Security", "Governance", "Business", "Infrastructure", "Applications")
 
 # Sources that may contribute at most one story to the shortlist.
@@ -119,6 +120,7 @@ def call_claude(prompt: str, api_key: str, model: str = "claude-sonnet-4-6") -> 
             "max_tokens": 8192,
             "messages": [{"role": "user", "content": prompt}],
         },
+        timeout=CLAUDE_TIMEOUT_SECONDS,
     )
     return resp["content"][0]["text"]
 
