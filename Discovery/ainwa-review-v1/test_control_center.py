@@ -121,6 +121,7 @@ class StaticUITests(unittest.TestCase):
         self.assertIn('$HOME/DevOps/AINWAdata', launcher)
         self.assertIn('AINWA_CLOUDFLARE_API_TOKEN', launcher)
         self.assertIn('AINWA_CLOUDFLARE_ACCOUNT_ID', launcher)
+        self.assertIn('export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"', launcher)
         self.assertNotIn('echo "$CLOUDFLARE', launcher)
         self.assertNotIn('python3 "$AINWA_DIR/ingest.py"', launcher)
         self.assertNotIn("SOURCING_PID_FILE", launcher)

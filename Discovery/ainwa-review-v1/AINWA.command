@@ -12,6 +12,9 @@
 
 AINWA_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOGS_DIR="$AINWA_DIR/logs"
+# Finder-launched .command files receive a minimal PATH. Include the standard
+# Homebrew locations so publish.sh can find npx/wrangler from the web UI.
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 export AINWA_DATA_DIR="${AINWA_DATA_DIR:-$HOME/DevOps/AINWAdata}"
 SERVER_URL="http://127.0.0.1:8765"
 SERVER_PID_FILE="$LOGS_DIR/server.pid"
