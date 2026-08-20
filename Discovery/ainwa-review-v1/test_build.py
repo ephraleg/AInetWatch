@@ -250,10 +250,14 @@ class TestSourcePlacement(unittest.TestCase):
         html = build.render_wire_story(
             _story("source-placement", source_name="Example Newsroom"), 1
         )
-        self.assertEqual(1, html.count('class="source"'))
+        self.assertEqual(2, html.count('class="source"'))
         self.assertIn("Source: Example Newsroom", html)
+        self.assertIn("Date: August 1, 2026", html)
         self.assertGreater(
             html.index("Source: Example Newsroom"), html.index('class="tooltip"')
+        )
+        self.assertGreater(
+            html.index("Date: August 1, 2026"), html.index('class="tooltip"')
         )
 
 

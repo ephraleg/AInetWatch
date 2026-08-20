@@ -88,12 +88,17 @@ class StaticUITests(unittest.TestCase):
         self.assertIn("After publishing:", self.html)
         self.assertIn("Generate Tooltip and Headline", self.html)
         self.assertIn('id="eOriginal"', self.html)
+        self.assertIn('id="eDate"', self.html)
         self.assertIn("4–8 words", self.html)
         for text in ("Open Queue", "Approve Queue", "Clear Queue", "Restart Server", "Kill Server"):
             self.assertIn(text, self.html)
         self.assertIn("publishApproved()", self.html)
         self.assertIn("publish_approved_count", self.html)
         self.assertIn("o.csrf_token!==oldToken", self.html)
+        self.assertIn("Building and deploying AInetWatch.com. Please wait.", self.html)
+        self.assertIn("Publish failed", self.html)
+        self.assertIn('class="footer-status"', self.html)
+        self.assertIn('aria-live="polite"', self.html)
 
     def test_server_preserves_security_and_reuses_publish_script(self):
         server = (Path(__file__).parent / "server.py").read_text()
@@ -154,6 +159,12 @@ class SourceRecoveryTests(unittest.TestCase):
 
 
 class PublicationGenerationStyleTests(unittest.TestCase):
+    def test_approval_preserves_source_publication_date(self):
+        candidate = story("dated")
+        candidate["published_at"] = "2026-08-20T09:30:00Z"
+        approved = server.make_approved(candidate, {})
+        self.assertEqual("2026-08-20T09:30:00Z", approved["published_at"])
+
     def test_accepts_hook_headline_and_concise_phrase_bullets(self):
         generated = {
             "brief_headline": "Critics Challenge Zuckerberg’s AI Compute Vision",

@@ -29,6 +29,7 @@ import html
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -158,10 +159,16 @@ def _render_tooltip(story: dict, tip_prefix: str) -> str:
         bullets = []
     category = esc(approved.get("category") or "")
     source_name = esc((story.get("source") or {}).get("name") or "")
+    raw_date = str(story.get("published_at") or story.get("discovered_at") or "")[:10]
+    try:
+        story_date = datetime.strptime(raw_date, "%Y-%m-%d").strftime("%B %d, %Y").replace(" 0", " ")
+    except ValueError:
+        story_date = raw_date
     tip_id = f"tip-{esc(tip_prefix)}-{esc(sid)}"
     bullet_html = "".join(f"<li>{esc(b)}</li>" for b in bullets[:5])
     tag_html = f'<span class="tag">{category}</span>' if category else ""
     source_html = f'<span class="source">Source: {source_name}</span>' if source_name else ""
+    date_html = f'<span class="source">Date: {esc(story_date)}</span>' if story_date else ""
     return (
         f'<input type="checkbox" id="{tip_id}" class="tip-toggle">\n'
         f'<label for="{tip_id}" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>\n'
@@ -169,7 +176,7 @@ def _render_tooltip(story: dict, tip_prefix: str) -> str:
         f'  <div class="tooltip-head">'
         f'<img src="CypherFavicon.jpg" alt=""><strong>Here\'s the summary</strong></div>\n'
         f'  <ul>{bullet_html}</ul>\n'
-        f'  <div class="tags">{tag_html}{source_html}</div>\n'
+        f'  <div class="tags">{tag_html}{source_html}{date_html}</div>\n'
         f'</div>'
     )
 

@@ -353,6 +353,7 @@ def make_approved(candidate: dict, edits: dict) -> dict:
             "locked": True,
         },
         "original_headline": candidate.get("original_headline") or candidate.get("headline") or "",
+        "published_at": candidate.get("published_at") or candidate.get("item_published") or "",
         "discovered_at": candidate.get("discovered_at"),
         # Multilingual compatibility hook (structural only — see normalize_language()).
         # English is authoritative; localizations stay empty in v1 and can only ever
@@ -1083,7 +1084,10 @@ class Handler(BaseHTTPRequestHandler):
             if completed.returncode:
                 with LOCK:
                     write_json(APPROVED_FILE, original_approved_payload)
-                CONTROL.log("publish", story_ids=list(selected_ids), ok=False, version_id=version)
+                CONTROL.log(
+                    "publish", story_ids=list(selected_ids), ok=False,
+                    version_id=version, error="publish command failed", output=output[-4000:],
+                )
                 return 502, {"error": "publish command failed", "output": output}
             deployment_succeeded = True
             queue = CONTROL._stories("publish_queue")

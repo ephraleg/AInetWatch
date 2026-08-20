@@ -21,6 +21,10 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
 - Shows the original headline above the editable AINWA headline for comparison.
 - Places source attribution inside the public story's expanded tooltip instead of
   displaying it beneath the headline.
+- Shows the source publication date in the editorial edit window and alongside
+  the source inside the public expanded tooltip.
+- Shows immediate publishing progress and a visible final success or diagnostic
+  error instead of leaving a long-running deployment silent.
 - Tracks provider token usage without making an additional AI request.
 - Starts sourcing only after the editor clicks **Source** and confirms; the launcher never starts it automatically.
 - Shows live Source stages and elapsed time, and disables overlapping operations.
