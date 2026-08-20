@@ -104,7 +104,13 @@ class ControlState:
             if duplicates:
                 raise ValueError(f"stories exist in multiple workflow locations: {duplicates}")
             usage = self.usage_today()
-            return {**data, "counts": {k: len(v) for k, v in data.items()}, "ai_usage_today": usage}
+            approved_count = sum(1 for story in data["publish_queue"] if story.get("publish_approved"))
+            return {
+                **data,
+                "counts": {k: len(v) for k, v in data.items()},
+                "publish_approved_count": approved_count,
+                "ai_usage_today": usage,
+            }
 
     def find(self, story_id):
         for location in self.LOCATIONS:
@@ -129,6 +135,10 @@ class ControlState:
             story = dict(story)
             story["workflow_location"] = destination
             story["workflow_updated_at"] = now_iso()
+            if destination == "publish_queue":
+                story["publish_approved"] = False
+            elif source == "publish_queue":
+                story.pop("publish_approved", None)
             dest_stories.append(story)
             self._save(source, source_stories)
             self._save(destination, dest_stories)
@@ -172,6 +182,28 @@ class ControlState:
             self._save(location, stories)
             self.log("edit", story_id=story_id, location=location)
             return updated
+
+    def set_publish_selection(self, story_ids):
+        selected = {str(story_id) for story_id in story_ids}
+        with WORKFLOW_LOCK:
+            stories = self._stories("publish_queue")
+            known = {str(story.get("id")) for story in stories}
+            unknown = sorted(selected - known)
+            if unknown:
+                raise ValueError(f"stories are not in Publish Queue: {unknown}")
+            updated = []
+            for story in stories:
+                item = dict(story)
+                item["publish_approved"] = str(item.get("id")) in selected
+                updated.append(item)
+            self._save("publish_queue", updated)
+            self.log("approve_publish_queue", selected_ids=sorted(selected), count=len(selected))
+            return {"approved_count": len(selected), "queue_count": len(updated)}
+
+    def clear_publish_selection(self):
+        result = self.set_publish_selection([])
+        self.log("clear_publish_queue_selection", queue_count=result["queue_count"])
+        return result
 
     def clear(self, location):
         if location not in ("scanned", "candidates", "standby"):

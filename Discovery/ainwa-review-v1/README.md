@@ -7,6 +7,10 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
 - Presents Scanned, Candidates, Standby, and Editorial at 18/18/18/46 desktop widths.
 - Keeps a story in exactly one workflow location at a time.
 - Uses a checked Publish Queue and explicit confirmation before deployment.
+- Displays both the total queue count and the persistently approved count on
+  **Open Queue**; the header **Publish** button publishes only that saved approved set.
+- **Approve Queue** saves checkbox selections across reopen/restart, while
+  **Clear Queue** unchecks everything without removing queued stories.
 - Treats Publish Queue as incremental: checked stories are added to the cumulative
   `data/approved-queue.json` list before the full static site is rebuilt.
 - Removes checked stories from Publish Queue only after deployment succeeds; a
@@ -23,6 +27,8 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
 - Can **Load Last Scan** into Scanned without refetching or making another AI call.
 - Shows source, original headline, proposed AInetWatch headline, summary, category, priority, Top Story, Developing, Claude rationale, and duplicate/corroboration notes together.
 - Opens the original source in a separate browser tab.
+- Provides confirmed **Restart Server** and **Kill Server** controls in the footer;
+  a stopped server is restarted with the wrapped launcher shortcut.
 - Supports four human decisions:
   - **Approve As-Is**
   - **Edit & Approve**

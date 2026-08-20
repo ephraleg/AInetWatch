@@ -50,6 +50,19 @@ class ControlStateTests(unittest.TestCase):
         self.assertEqual("publish_queue", location)
         self.assertEqual("Edited", updated["proposal"]["headline"])
 
+    def test_publish_selection_persists_and_clear_retains_stories(self):
+        self.state.add(story("one"), "publish_queue")
+        self.state.add(story("two"), "publish_queue")
+        self.state.set_publish_selection(["two"])
+        reloaded = ControlState(Path(self.tmp.name)).snapshot()
+        self.assertEqual(1, reloaded["publish_approved_count"])
+        self.assertFalse(reloaded["publish_queue"][0]["publish_approved"])
+        self.assertTrue(reloaded["publish_queue"][1]["publish_approved"])
+        self.state.clear_publish_selection()
+        cleared = self.state.snapshot()
+        self.assertEqual(0, cleared["publish_approved_count"])
+        self.assertEqual(2, len(cleared["publish_queue"]))
+
     def test_usage_totals_need_no_model_call(self):
         self.state.record_usage("tooltip", "anthropic", "model", 100, 20, .01)
         self.assertEqual({"input_tokens": 100, "output_tokens": 20, "estimated_cost": .01}, self.state.usage_today())
@@ -76,6 +89,11 @@ class StaticUITests(unittest.TestCase):
         self.assertIn("Generate Tooltip and Headline", self.html)
         self.assertIn('id="eOriginal"', self.html)
         self.assertIn("4–8 words", self.html)
+        for text in ("Open Queue", "Approve Queue", "Clear Queue", "Restart Server", "Kill Server"):
+            self.assertIn(text, self.html)
+        self.assertIn("publishApproved()", self.html)
+        self.assertIn("publish_approved_count", self.html)
+        self.assertIn("o.csrf_token!==oldToken", self.html)
 
     def test_server_preserves_security_and_reuses_publish_script(self):
         server = (Path(__file__).parent / "server.py").read_text()
@@ -87,6 +105,11 @@ class StaticUITests(unittest.TestCase):
         self.assertIn("PUBLISH_LOCK.acquire(blocking=False)", server)
         self.assertIn("published_count", server)
         self.assertIn("original_approved_payload", server)
+        self.assertIn('"/api/control/approve-queue"', server)
+        self.assertIn('"/api/control/clear-queue"', server)
+        self.assertIn('"/api/control/restart-server"', server)
+        self.assertIn('"/api/control/kill-server"', server)
+        self.assertIn("RESTART_REQUESTED", server)
 
     def test_launcher_loads_runtime_path_and_cloudflare_keychain_credentials(self):
         launcher = (Path(__file__).parent / "AINWA.command").read_text()
@@ -164,6 +187,7 @@ class PublishQueueTransactionTests(unittest.TestCase):
         queued = story("new-story")
         queued["proposal"].update({"brief_headline": "New", "public_summary": ["One", "Two"], "category": "Business"})
         state.add(queued, "publish_queue")
+        state.set_publish_selection(["new-story"])
         approved_file = root / "published" / "approved-queue.json"
         approved_file.parent.mkdir()
         approved_file.write_text(json.dumps({"version": 1, "stories": [{"id": "existing"}]}))
@@ -190,6 +214,22 @@ class PublishQueueTransactionTests(unittest.TestCase):
             self.assertEqual(502, status)
             self.assertEqual(original, json.loads(approved_file.read_text()))
             self.assertEqual(["new-story"], [s["id"] for s in state.snapshot()["publish_queue"]])
+
+    def test_publish_uses_saved_approval_not_request_ids(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            state, approved_file = self._setup(root)
+            other = story("not-approved")
+            other["proposal"].update({"brief_headline": "Other", "public_summary": ["One", "Two"], "category": "Business"})
+            state.add(other, "publish_queue")
+            handler = object.__new__(server.Handler)
+            with patch.object(server, "CONTROL", state), patch.object(server, "APPROVED_FILE", approved_file), patch.dict(os.environ, {"AINWA_PUBLISH_COMMAND": "/usr/bin/true"}):
+                status, result = handler._publish({"ids": ["not-approved"]})
+            self.assertEqual(200, status)
+            self.assertEqual(1, result["published"])
+            published_ids = [item["id"] for item in json.loads(approved_file.read_text())["stories"]]
+            self.assertIn("new-story", published_ids)
+            self.assertNotIn("not-approved", published_ids)
 
 
 if __name__ == "__main__":

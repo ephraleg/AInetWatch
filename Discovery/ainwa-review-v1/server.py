@@ -53,6 +53,7 @@ PUBLISH_LOCK = threading.Lock()
 OPERATION_LOCK = threading.Lock()
 CONTROL = ControlState(RUNTIME_ROOT)
 OPERATION_STATUS = {"running": False, "stage": "idle", "message": "Ready", "started_at": None, "updated_at": None}
+RESTART_REQUESTED = threading.Event()
 
 MAX_BODY_BYTES = 1_000_000  # 1 MB — POST body size limit (finding #4)
 
@@ -739,6 +740,8 @@ class Handler(BaseHTTPRequestHandler):
             "/api/control/move", "/api/control/edit", "/api/control/clear",
             "/api/control/reject", "/api/control/generate-tooltip", "/api/control/publish",
             "/api/control/manual", "/api/control/source", "/api/control/recover-scan", "/api/control/lazy-update",
+            "/api/control/approve-queue", "/api/control/clear-queue",
+            "/api/control/restart-server", "/api/control/kill-server",
         }
         if path not in {"/api/review", "/api/manual"} | control_paths:
             self.send_error(404)
@@ -842,13 +845,32 @@ class Handler(BaseHTTPRequestHandler):
             status, result = self._recover_scan()
         elif path == "/api/control/lazy-update":
             status, result = self._lazy_update()
+        elif path == "/api/control/approve-queue":
+            ids = body.get("ids")
+            if not isinstance(ids, list):
+                status, result = 400, {"error": "ids must be a JSON array"}
+            else:
+                try:
+                    status, result = 200, {"ok": True, **CONTROL.set_publish_selection(ids)}
+                except ValueError as exc:
+                    status, result = 409, {"error": str(exc)}
+        elif path == "/api/control/clear-queue":
+            status, result = 200, {"ok": True, **CONTROL.clear_publish_selection()}
         elif path == "/api/control/publish":
             status, result = self._publish(body)
+        elif path == "/api/control/restart-server":
+            status, result = 200, {"ok": True, "message": "AINWA server is restarting"}
+        elif path == "/api/control/kill-server":
+            status, result = 200, {"ok": True, "message": "AINWA server stopped"}
         elif path == "/api/manual":
             status, result = apply_manual(body)
         else:
             status, result = apply_action(body)
         self._json(status, result)
+        if status == 200 and path in {"/api/control/restart-server", "/api/control/kill-server"}:
+            if path == "/api/control/restart-server":
+                RESTART_REQUESTED.set()
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
 
     def _control_manual(self, body):
         url = str(body.get("url") or "").strip()
@@ -1017,9 +1039,10 @@ class Handler(BaseHTTPRequestHandler):
         return 200, {"ok": True, "generated": generated, "usage": usage}
 
     def _publish(self, body):
-        ids = body.get("ids")
-        if not isinstance(ids, list) or not ids:
-            return 400, {"error": "select at least one story"}
+        queue = CONTROL._stories("publish_queue")
+        ids = [str(story.get("id")) for story in queue if story.get("publish_approved")]
+        if not ids:
+            return 400, {"error": "approve at least one queued story before publishing"}
         if not PUBLISH_LOCK.acquire(blocking=False):
             return 409, {"error": "a publish is already running"}
         original_approved_payload = None
@@ -1155,6 +1178,13 @@ def main():
         print("\nStopped.")
     finally:
         server.server_close()
+    if RESTART_REQUESTED.is_set():
+        subprocess.Popen(
+            [sys.executable, str(ROOT / "server.py"), *sys.argv[1:]],
+            cwd=ROOT,
+            env=os.environ.copy(),
+            start_new_session=True,
+        )
 
 
 if __name__ == "__main__":
