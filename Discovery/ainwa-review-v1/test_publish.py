@@ -2,7 +2,7 @@
 
 Does NOT duplicate tests already covered by:
   test_build.py  — unlocked records, unapproved exclusion, HTML escaping,
-                   unsafe URLs, 50-story cap
+                   unsafe URLs, 60-story cap
   test_server.py — editorial_notes/advisory absent from approved record
 
 Checks added here:

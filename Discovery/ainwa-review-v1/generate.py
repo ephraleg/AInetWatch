@@ -32,7 +32,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
-DATA_DIR = ROOT / "data"
+_RUNTIME = os.environ.get("AINWA_DATA_DIR")
+DATA_DIR = Path(_RUNTIME).expanduser().resolve() / "state" if _RUNTIME else ROOT / "data"
 FILTERED_FILE = DATA_DIR / "filtered-discovery.json"
 APPROVED_FILE = DATA_DIR / "approved-queue.json"
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
@@ -393,6 +394,12 @@ def _carryover_candidates(existing: list[dict], cutoff_ts: datetime) -> list[dic
     kept: list[dict] = []
     for c in existing:
         if c.get("status") in terminal:
+            continue
+        # Human-entered stories must never age out merely because a sourcing run
+        # overlaps the review session. They remain until the editor explicitly
+        # publishes, rejects, or archives them.
+        if c.get("intake_method") == "manual":
+            kept.append(c)
             continue
         raw_ts = c.get("queued_at") or c.get("discovered_at") or ""
         try:

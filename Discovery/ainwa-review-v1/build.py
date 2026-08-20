@@ -2,8 +2,8 @@
 """AINWA-009 Static Homepage Builder
 
 Reads data/approved-queue.json and writes:
-  index.html   — the 50 most recently approved stories (by approved_at desc)
-  archive.html — stories 51 and beyond
+  index.html   — the 60 most recently approved stories (by approved_at desc)
+  archive.html — stories 61 and beyond
 
 Homepage retention rule (locked — see docs/ANWU-HOMEPAGE-ARCHITECTURE.md §5b):
   Selection is by approved_at descending only.
@@ -34,11 +34,12 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent.parent
-DATA_DIR = ROOT / "data"
+_RUNTIME = os.environ.get("AINWA_DATA_DIR")
+DATA_DIR = Path(_RUNTIME).expanduser().resolve() / "state" if _RUNTIME else ROOT / "data"
 TEMPLATE_FILE = REPO_ROOT / "index-live-content.html"
 OUTPUT_DIR = REPO_ROOT
 
-HOMEPAGE_CAP = 50
+HOMEPAGE_CAP = 60
 
 
 # ---------------------------------------------------------------------------

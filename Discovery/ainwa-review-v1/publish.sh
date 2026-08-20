@@ -4,7 +4,7 @@
 # Default (no flags): preflight only — builds, validates, populates dist/.
 #   No Cloudflare credentials required. Wrangler is never called.
 #
-# --deploy: all preflight gates must pass, then deploys dist/ to Cloudflare Pages.
+# --deploy: all preflight gates must pass, then deploys dist/ to the Cloudflare Worker.
 #   Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in environment.
 #
 # Usage:
@@ -113,6 +113,6 @@ if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
   exit 1
 fi
 
-echo "[AINWA] Credentials present. Deploying dist/ to Cloudflare Pages..."
+echo "[AINWA] Credentials present. Deploying dist/ to Cloudflare Worker..."
 cd "$SCRIPT_DIR"
 npx wrangler deploy --config wrangler.jsonc

@@ -19,6 +19,8 @@ import fcntl
 import json
 import os
 import secrets
+import subprocess
+import hashlib
 import sys
 import threading
 import webbrowser
@@ -28,17 +30,24 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 
+from ai_provider import AIProviderError, configured_provider
+from control_state import ControlState
+
 ROOT = Path(__file__).resolve().parent
 
 # Data directory is configurable (--data-dir) so tests can run against an isolated
 # temp directory instead of the real prototype data in ./data.
-DATA_DIR = ROOT / "data"
+RUNTIME_ROOT = Path(os.environ.get("AINWA_DATA_DIR", ROOT / "data")).expanduser().resolve()
+DATA_DIR = (RUNTIME_ROOT / "state") if os.environ.get("AINWA_DATA_DIR") else RUNTIME_ROOT
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
 APPROVED_FILE = DATA_DIR / "approved-queue.json"
 LOG_FILE = DATA_DIR / "review-log.json"
 INDEX_FILE = ROOT / "index.html"
 
 LOCK = threading.Lock()
+PUBLISH_LOCK = threading.Lock()
+CONTROL = ControlState(RUNTIME_ROOT)
+OPERATION_STATUS = {"running": False, "stage": "idle", "message": "Ready", "updated_at": None}
 
 MAX_BODY_BYTES = 1_000_000  # 1 MB — POST body size limit (finding #4)
 
@@ -580,6 +589,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
+        if path == "/api/control":
+            try:
+                payload = CONTROL.snapshot()
+                payload.update({"csrf_token": CSRF_TOKEN, "operation": dict(OPERATION_STATUS)})
+                self._json(200, payload)
+            except (ValueError, QueueFileError, json.JSONDecodeError) as exc:
+                self._json(409, {"error": str(exc)})
+            return
         if path == "/api/state":
             with LOCK:
                 try:
@@ -691,7 +708,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in {"/api/review", "/api/manual"}:
+        control_paths = {
+            "/api/control/move", "/api/control/edit", "/api/control/clear",
+            "/api/control/reject", "/api/control/generate-tooltip", "/api/control/publish",
+            "/api/control/manual", "/api/control/source", "/api/control/lazy-update",
+        }
+        if path not in {"/api/review", "/api/manual"} | control_paths:
             self.send_error(404)
             return
 
@@ -750,11 +772,201 @@ class Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": "request body must be a JSON object"})
             return
 
-        if path == "/api/manual":
+        if path == "/api/control/move":
+            try:
+                story = CONTROL.move(str(body.get("id") or ""), str(body.get("destination") or ""))
+                status, result = 200, {"ok": True, "story": story}
+            except KeyError:
+                status, result = 404, {"error": "story not found"}
+            except ValueError as exc:
+                status, result = 409, {"error": str(exc)}
+        elif path == "/api/control/edit":
+            edits = body.get("edits")
+            if not isinstance(edits, dict):
+                status, result = 400, {"error": "edits must be a JSON object"}
+            else:
+                try:
+                    story = CONTROL.update_story(str(body.get("id") or ""), edits)
+                    status, result = 200, {"ok": True, "story": story}
+                except KeyError:
+                    status, result = 404, {"error": "story not found"}
+        elif path == "/api/control/clear":
+            try:
+                status, result = 200, {"ok": True, **CONTROL.clear(str(body.get("location") or ""))}
+            except ValueError as exc:
+                status, result = 400, {"error": str(exc)}
+        elif path == "/api/control/reject":
+            try:
+                CONTROL.reject(str(body.get("id") or ""), str(body.get("reason") or ""))
+                status, result = 200, {"ok": True}
+            except KeyError:
+                status, result = 404, {"error": "story not found"}
+        elif path == "/api/control/generate-tooltip":
+            status, result = self._generate_tooltip(body)
+        elif path == "/api/control/manual":
+            status, result = self._control_manual(body)
+        elif path == "/api/control/source":
+            status, result = self._source()
+        elif path == "/api/control/lazy-update":
+            status, result = self._lazy_update()
+        elif path == "/api/control/publish":
+            status, result = self._publish(body)
+        elif path == "/api/manual":
             status, result = apply_manual(body)
         else:
             status, result = apply_action(body)
         self._json(status, result)
+
+    def _control_manual(self, body):
+        url = str(body.get("url") or "").strip()
+        source_name = str(body.get("source_name") or "").strip()
+        headline = str(body.get("original_headline") or "").strip()
+        if not is_http_url(url) or not source_name or not headline:
+            return 400, {"error": "valid URL, source name, and original headline are required"}
+        sid = "manual-" + hashlib.sha256(url.encode()).hexdigest()[:16]
+        story = make_manual_candidate(url, source_name, headline, {"priority": "Medium"})
+        story["id"] = sid
+        story["published_at"] = str(body.get("published_at") or "")
+        try:
+            return 200, {"ok": True, "story": CONTROL.add(story, "scanned")}
+        except ValueError as exc:
+            return 409, {"error": str(exc)}
+
+    def _source(self):
+        if OPERATION_STATUS["running"]:
+            return 409, {"error": "another operation is already running"}
+        def run():
+            OPERATION_STATUS.update(running=True, stage="fetching", message="Fetching sources", updated_at=now_iso())
+            try:
+                before_ids = {str(s.get("id")) for s in CONTROL._stories("candidates")}
+                for stage, script in (("fetching", "ingest.py"), ("deduplicating", "filter.py"), ("selecting", "generate.py")):
+                    OPERATION_STATUS.update(stage=stage, message=stage.replace("_", " ").title(), updated_at=now_iso())
+                    completed = subprocess.run([sys.executable, str(ROOT / script)], cwd=ROOT, capture_output=True, text=True, timeout=420)
+                    if completed.returncode:
+                        raise RuntimeError((completed.stderr or completed.stdout)[-2000:])
+                payload = read_json_checked(CANDIDATES_FILE, {"candidates": []})
+                candidates = candidate_list(payload)
+                candidate_urls = {_canonical_url(normalized_source(s).get("url")) for s in candidates if normalized_source(s).get("url")}
+                added = len({str(s.get("id")) for s in candidates} - before_ids)
+                filtered = read_json_checked(DATA_DIR / "filtered-discovery.json", {"items": []})
+                scanned_added = 0
+                for item in (filtered.get("items", []) if isinstance(filtered, dict) else [])[:60]:
+                    url = item.get("canonical_url") or item.get("item_url") or ""
+                    if not is_http_url(url) or _canonical_url(url) in candidate_urls:
+                        continue
+                    sid = str(item.get("item_id") or "scan-" + hashlib.sha256(url.encode()).hexdigest()[:16])
+                    scan_story = {
+                        "id": sid, "status": "scanned", "original_headline": item.get("item_title") or "",
+                        "published_at": item.get("item_published") or "", "discovered_at": item.get("fetched_at") or now_iso(),
+                        "source": {"name": item.get("source_name") or "", "url": url, "role": item.get("source_role") or "", "reliability": item.get("source_reliability") or "", "paywall": bool(item.get("paywall", False))},
+                        "proposal": {"priority": str(item.get("source_priority") or "medium").title(), "public_summary": []},
+                    }
+                    try:
+                        CONTROL.add(scan_story, "scanned"); scanned_added += 1
+                    except ValueError:
+                        pass
+                CONTROL.log("source", ok=True, scanned_added=scanned_added, candidates_added=added)
+                OPERATION_STATUS.update(running=False, stage="complete", message=f"Source complete · {scanned_added} Scanned · {added} Candidates added", updated_at=now_iso())
+            except Exception as exc:
+                CONTROL.log("source", ok=False, error=str(exc))
+                OPERATION_STATUS.update(running=False, stage="error", message=f"Source failed: {exc}", updated_at=now_iso())
+        threading.Thread(target=run, daemon=True).start()
+        return 202, {"ok": True, "started": True}
+
+    def _lazy_update(self):
+        candidates = CONTROL._stories("candidates")
+        if not candidates:
+            return 409, {"error": "Candidate column is empty"}
+        try:
+            approved = approved_list(read_json_checked(APPROVED_FILE, {"stories": []}))
+            compact = [{"id": s.get("id"), "headline": normalized_proposal(s).get("brief_headline"), "source": normalized_source(s).get("name"), "priority": normalized_proposal(s).get("priority"), "date": s.get("published_at") or s.get("discovered_at")} for s in candidates]
+            homepage = [{"headline": s.get("approved", {}).get("headline"), "category": s.get("approved", {}).get("category"), "top_story": s.get("approved", {}).get("top_story")} for s in approved[-60:]]
+            prompt = json.dumps({"candidates": compact, "current_homepage": homepage, "instructions": "Select 2-4 candidate ids using importance, recency, source/topic diversity and homepage coverage. High or Critical may be proposed as headliner."})
+            generated, usage = configured_provider().generate_json("lazy_update", prompt, '{"selected_ids":["id"],"headliner_id":null,"rationale":"..."}')
+            ids = [str(x) for x in generated.get("selected_ids", [])][:4]
+            if not 2 <= len(ids) <= 4 or any(not CONTROL.find(x)[1] for x in ids):
+                return 502, {"error": "AI response failed Lazy Update validation"}
+            CONTROL.record_usage("lazy_update", usage["provider"], usage["model"], usage["input_tokens"], usage["output_tokens"])
+            return 200, {"ok": True, "selected_ids": ids, "headliner_id": generated.get("headliner_id"), "rationale": generated.get("rationale", "")}
+        except (AIProviderError, QueueFileError) as exc:
+            return 502, {"error": str(exc)}
+
+    def _generate_tooltip(self, body):
+        story_id = str(body.get("id") or "")
+        _location, story = CONTROL.find(story_id)
+        if not story:
+            return 404, {"error": "story not found"}
+        source = normalized_source(story)
+        proposal = normalized_proposal(story)
+        evidence_scope = str(body.get("evidence_scope") or ("headline_only" if source.get("paywall") else "available_metadata"))
+        prompt = json.dumps({
+            "operation": "AINWA publication fields",
+            "evidence_scope": evidence_scope,
+            "source": source,
+            "original_headline": story.get("original_headline") or story.get("headline"),
+            "existing_proposal": proposal,
+            "instructions": "Write 2-5 short phrase bullets. Also recommend category, social hashtags, importance, headliner, and developing. Qualify claims when evidence is limited.",
+        }, ensure_ascii=False)
+        schema = '{"public_summary":["..."],"category":"...","social_tags":["#..."],"priority":"Critical|High|Medium|Low","top_story":false,"developing":false,"limited_evidence":true}'
+        try:
+            generated, usage = configured_provider().generate_json("generate_tooltip", prompt, schema)
+        except AIProviderError as exc:
+            return 502, {"error": str(exc)}
+        if not isinstance(generated.get("public_summary"), list) or not 2 <= len(generated["public_summary"]) <= 5:
+            return 502, {"error": "AI response failed summary validation"}
+        priority = str(generated.get("priority") or "")
+        if priority not in {"Critical", "High", "Medium", "Low"}:
+            return 502, {"error": "AI response failed priority validation"}
+        CONTROL.record_usage("generate_tooltip", usage["provider"], usage["model"], usage["input_tokens"], usage["output_tokens"])
+        return 200, {"ok": True, "generated": generated, "usage": usage}
+
+    def _publish(self, body):
+        ids = body.get("ids")
+        if not isinstance(ids, list) or not ids:
+            return 400, {"error": "select at least one story"}
+        if not PUBLISH_LOCK.acquire(blocking=False):
+            return 409, {"error": "a publish is already running"}
+        try:
+            selected = []
+            for story_id in ids:
+                location, story = CONTROL.find(str(story_id))
+                if location != "publish_queue" or not story:
+                    return 409, {"error": f"story {story_id} is not in Publish Queue"}
+                selected.append(story)
+            top_count = sum(bool(normalized_proposal(s).get("top_story")) for s in selected)
+            dev_count = sum(bool(normalized_proposal(s).get("developing")) for s in selected)
+            if top_count > 1 or dev_count > 1:
+                return 409, {"error": "only one selected Headliner and one selected Developing story are allowed"}
+            with LOCK:
+                apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
+                approved = approved_list(apayload)
+                existing_ids = {str(s.get("id")) for s in approved}
+                for story in selected:
+                    if str(story.get("id")) in existing_ids:
+                        return 409, {"error": f"story {story.get('id')} is already approved"}
+                    approved.append(make_approved(story, normalized_proposal(story)))
+                apayload = {"version": 1, "updated_at": now_iso(), "stories": approved}
+                write_json(APPROVED_FILE, apayload)
+            queue = CONTROL._stories("publish_queue")
+            selected_ids = {str(x) for x in ids}
+            CONTROL._save("publish_queue", [s for s in queue if str(s.get("id")) not in selected_ids])
+            command = os.environ.get("AINWA_PUBLISH_COMMAND")
+            args = command.split() if command else ["bash", str(ROOT / "publish.sh"), "--deploy"]
+            completed = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, timeout=600)
+            output = (completed.stdout + "\n" + completed.stderr).strip()[-12000:]
+            version = None
+            for line in output.splitlines():
+                if "Current Version ID:" in line:
+                    version = line.split("Current Version ID:", 1)[1].strip()
+            CONTROL.log("publish", story_ids=list(selected_ids), ok=completed.returncode == 0, version_id=version)
+            if completed.returncode:
+                return 502, {"error": "publish command failed", "output": output}
+            return 200, {"ok": True, "published": len(selected), "output": output, "version_id": version}
+        except (OSError, subprocess.TimeoutExpired, QueueFileError) as exc:
+            CONTROL.log("publish", story_ids=ids, ok=False, error=str(exc))
+            return 502, {"error": str(exc)}
+        finally:
+            PUBLISH_LOCK.release()
 
     def log_message(self, fmt, *args):
         print("[AINWA]", fmt % args)
@@ -765,7 +977,7 @@ def is_loopback(host: str) -> bool:
 
 
 def main():
-    global DATA_DIR, CANDIDATES_FILE, APPROVED_FILE, LOG_FILE, CSRF_TOKEN, ALLOWED_ORIGINS
+    global DATA_DIR, CANDIDATES_FILE, APPROVED_FILE, LOG_FILE, CSRF_TOKEN, ALLOWED_ORIGINS, CONTROL
 
     parser = argparse.ArgumentParser(description="AINWA Review Console v1")
     parser.add_argument("--host", default="127.0.0.1")
@@ -808,6 +1020,7 @@ def main():
         CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
         APPROVED_FILE = DATA_DIR / "approved-queue.json"
         LOG_FILE = DATA_DIR / "review-log.json"
+        CONTROL = ControlState(DATA_DIR)
 
     CSRF_TOKEN = secrets.token_hex(32)
     ALLOWED_ORIGINS = {
@@ -817,6 +1030,7 @@ def main():
     }
 
     ensure_files()
+    CONTROL.ensure()
     addr = (args.host, args.port)
     server = ThreadingHTTPServer(addr, Handler)
     url = f"http://{args.host}:{args.port}"

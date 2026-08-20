@@ -25,7 +25,7 @@ No deployment has occurred. AINWA v1 implementation sprint is complete.
 
 ## Pipeline
 
-`ingest.py` → `raw-discovery.json` → `filter.py` → `filtered-discovery.json` → `generate.py` → `candidate-queue.json` → human review console → `approved-queue.json` → `build.py` → `index.html` + `archive.html` → `publish.sh --deploy` → `dist/` → Cloudflare Pages
+`ingest.py` → `raw-discovery.json` → `filter.py` → `filtered-discovery.json` → `generate.py` → `candidate-queue.json` → human control center → Publish Queue → `approved-queue.json` → `build.py` → `index.html` + `archive.html` → `publish.sh --deploy` → `dist/` → Cloudflare Worker
 
 ## Test counts
 
@@ -60,9 +60,9 @@ No deployment has occurred. AINWA v1 implementation sprint is complete.
 
 ## Homepage retention rule
 
-- Homepage renders the 50 most recently approved stories by `approved.approved_at` descending
+- Homepage renders the 60 most recently approved stories by `approved.approved_at` descending
 - Stories 51 and beyond roll to `archive.html`
-- `approved.priority`, `top_story`, and `developing` affect prominence/layout only, not which 50 stories are retained
+- `approved.priority`, `top_story`, and `developing` affect prominence/layout only, not which 60 stories are retained
 - Enforced by `build.py`
 
 ## Multilingual status

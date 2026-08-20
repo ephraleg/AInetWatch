@@ -16,3 +16,9 @@ __pycache__/
 # Editor swap/backup files
 *.swp
 *~
+
+# Live runtime state belongs outside Git in $AINWA_DATA_DIR.
+state/
+logs/
+backups/
+locks/

@@ -1,10 +1,14 @@
-# AINWA Review Console v1
+# AINWA Control Center
 
-A deliberately small human-approval interface for AInetWatch.
+A local, human-controlled sourcing, editorial, and publishing interface for AInetWatch.
 
 ## What it does
 
-- Reads up to the top 12 active records from `data/candidate-queue.json`.
+- Presents Scanned, Candidates, Standby, and Editorial at 18/18/18/46 desktop widths.
+- Keeps a story in exactly one workflow location at a time.
+- Uses a checked Publish Queue and explicit confirmation before deployment.
+- Generates tooltip/category/tag recommendations only during publication editing.
+- Tracks provider token usage without making an additional AI request.
 - Shows source, original headline, proposed AInetWatch headline, summary, category, priority, Top Story, Developing, Claude rationale, and duplicate/corroboration notes together.
 - Opens the original source in a separate browser tab.
 - Supports four human decisions:
@@ -177,7 +181,7 @@ stage can be added without a schema migration. As of this pass:
   Security above for what *is* now protected against without adding auth.)
 - No database.
 - No framework or package installation.
-- No live publishing button yet. Approval only moves a story into the Approved Queue.
+- Publishing is always a foreground human action; background sourcing cannot publish.
 - Snooze values are stored, but the future ingestion scheduler decides when a snoozed story is reintroduced.
 - Reject reasons are deliberately short so they can later inform source/performance tuning.
 

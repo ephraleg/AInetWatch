@@ -5,7 +5,7 @@ Security gates tested here:
   - Non-approved record excluded from output
   - HTML injection in headline/source escaped
   - javascript: (non-http) URL blocked — no href written
-  - 60 approved stories → 50 newest on homepage, 10 in archive
+  - 70 approved stories → 60 newest on homepage, 10 in archive
   - editorial_notes never appears anywhere in built output
 """
 from __future__ import annotations
@@ -282,12 +282,12 @@ class TestUrlBlocking(unittest.TestCase):
 
 
 class TestHomepageCap(unittest.TestCase):
-    """60 approved stories → 50 most recent on homepage, 10 in archive."""
+    """70 approved stories → 60 most recent on homepage, 10 in archive."""
 
     def _make_60_stories(self) -> list[dict]:
-        """Return 60 stories. Story IDs encode their recency: s59 is newest."""
+        """Return 70 stories. Story IDs encode their recency: s69 is newest."""
         stories = []
-        for i in range(60):
+        for i in range(70):
             stories.append(_story(
                 f"s{i:02d}",
                 headline=f"Story {i:02d}",
@@ -310,8 +310,8 @@ class TestHomepageCap(unittest.TestCase):
             index_html = (out_dir / "index.html").read_text(encoding="utf-8")
             archive_html = (out_dir / "archive.html").read_text(encoding="utf-8")
 
-            # Stories s10–s59 (the 50 most recent) must be on homepage.
-            for i in range(10, 60):
+            # Stories s10–s69 (the 60 most recent) must be on homepage.
+            for i in range(10, 70):
                 self.assertIn(f"Story {i:02d}", index_html,
                               msg=f"Story {i:02d} should be on homepage (index.html)")
 
@@ -507,11 +507,11 @@ class TestArchivedRecords(unittest.TestCase):
         self.assertIn("Brief Headline From Approved Block", archive)
 
     def test_combined_archive_contains_overflow_and_archived(self):
-        # 51 approved + 1 archived → archive must contain both the overflow story
+        # 61 approved + 1 archived → archive must contain both the overflow story
         # and the archived story
         approved_stories = [
             _story(f"ap{i:02d}", headline=f"Approved {i:02d}", approved_at=_ts(i))
-            for i in range(51)
+            for i in range(61)
         ]
         archived_story = _story("arch-x", headline="Direct Archive Story",
                                 status="archived", archived_at=_ts(99))

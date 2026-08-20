@@ -14,6 +14,7 @@
 
 AINWA_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOGS_DIR="$AINWA_DIR/logs"
+export AINWA_DATA_DIR="${AINWA_DATA_DIR:-$HOME/DevOps/AINWAdata}"
 SERVER_URL="http://127.0.0.1:8765"
 SERVER_PID_FILE="$LOGS_DIR/server.pid"
 SOURCING_PID_FILE="$LOGS_DIR/sourcing.pid"
@@ -33,6 +34,17 @@ if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
     echo "[AINWA] Loaded ANTHROPIC_API_KEY from Keychain."
   fi
   unset _k
+fi
+
+if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+  _cf_token=$(security find-generic-password -s "AINWA_CLOUDFLARE_API_TOKEN" -a "$USER" -w 2>/dev/null) || true
+  [[ -n "$_cf_token" ]] && export CLOUDFLARE_API_TOKEN="$_cf_token" && echo "[AINWA] Loaded Cloudflare API token from Keychain."
+  unset _cf_token
+fi
+if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+  _cf_account=$(security find-generic-password -s "AINWA_CLOUDFLARE_ACCOUNT_ID" -a "$USER" -w 2>/dev/null) || true
+  [[ -n "$_cf_account" ]] && export CLOUDFLARE_ACCOUNT_ID="$_cf_account" && echo "[AINWA] Loaded Cloudflare account ID from Keychain."
+  unset _cf_account
 fi
 
 # ---------------------------------------------------------------------------

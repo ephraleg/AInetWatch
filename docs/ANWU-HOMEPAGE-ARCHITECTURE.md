@@ -165,7 +165,7 @@ review straightforward — you can always regenerate the homepage from the appro
 
 ### 5b. Homepage retention rule (locked — do not override in build step)
 
-The homepage renders the **50 most recently approved stories**, ordered by `approved.approved_at`
+The homepage renders the **60 most recently approved stories**, ordered by `approved.approved_at`
 descending. Stories at positions 51 and beyond roll to `archive.html`.
 
 `approved.priority`, `top_story`, and `developing` govern **rendering prominence and layout only**:
@@ -174,7 +174,7 @@ descending. Stories at positions 51 and beyond roll to `archive.html`.
 - `developing: true` → the story gets the `.developing-strip` section (second featured slot)
 - `priority` → column placement and ordering within the three-column wire grid
 
-None of these fields affect which 50 stories are selected. Selection is purely by recency
+None of these fields affect which 60 stories are selected. Selection is purely by recency
 (`approved_at` descending). A high-priority story approved two days ago does not displace a
 low-priority story approved one minute ago.
 
@@ -196,7 +196,7 @@ markup, so the mapping is inspectable in the file itself, not just in this doc):
 | `approved.priority` | Column placement and ordering within the wire grid |
 | `approved.category` | Tooltip category tag |
 | `approved.public_summary[]` | Tooltip bullets (published verbatim; 3 bullets) |
-| `approved.approved_at` | Used for homepage retention sort (50 most recent); not yet displayed |
+| `approved.approved_at` | Used for homepage retention sort (60 most recent); not yet displayed |
 | `approved.image` / `image_alt` | Optional story image + alt text (reserved; not yet rendered) |
 
 **`editorial_notes` is never read by `build.py`.** It is reviewer-only data and must not
