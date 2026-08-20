@@ -245,6 +245,18 @@ class TestHtmlEscaping(unittest.TestCase):
             self.assertIn("&lt;b ", index_html)
 
 
+class TestSourcePlacement(unittest.TestCase):
+    def test_source_appears_only_inside_expanded_tooltip(self):
+        html = build.render_wire_story(
+            _story("source-placement", source_name="Example Newsroom"), 1
+        )
+        self.assertEqual(1, html.count('class="source"'))
+        self.assertIn("Source: Example Newsroom", html)
+        self.assertGreater(
+            html.index("Source: Example Newsroom"), html.index('class="tooltip"')
+        )
+
+
 class TestUrlBlocking(unittest.TestCase):
     """Non-http(s) URLs must not produce an href attribute."""
 

@@ -8,6 +8,7 @@ from unittest.mock import patch
 import generate
 import server
 from control_state import ControlState
+from server import validate_generated_publication
 
 
 def story(sid, priority="High"):
@@ -72,6 +73,9 @@ class StaticUITests(unittest.TestCase):
         self.assertIn("watchOperation", self.html)
         self.assertIn("Currently published:", self.html)
         self.assertIn("After publishing:", self.html)
+        self.assertIn("Generate Tooltip and Headline", self.html)
+        self.assertIn('id="eOriginal"', self.html)
+        self.assertIn("4–8 words", self.html)
 
     def test_server_preserves_security_and_reuses_publish_script(self):
         server = (Path(__file__).parent / "server.py").read_text()
@@ -124,6 +128,33 @@ class SourceRecoveryTests(unittest.TestCase):
         with patch.object(generate, "_http_post", return_value=response):
             self.assertEqual("[]", generate.call_claude("prompt", "key"))
         self.assertEqual({"input_tokens": 321, "output_tokens": 45}, generate.LAST_CLAUDE_USAGE)
+
+
+class PublicationGenerationStyleTests(unittest.TestCase):
+    def test_accepts_hook_headline_and_concise_phrase_bullets(self):
+        generated = {
+            "brief_headline": "Critics Challenge Zuckerberg’s AI Compute Vision",
+            "public_summary": [
+                "Zuckerberg’s manifesto outlines Meta’s expansive vision for AI",
+                "Critics cite infrastructure constraints and difficult resource realities",
+                "AI ambitions may exceed available computing power and energy",
+            ],
+        }
+        self.assertIsNone(validate_generated_publication(generated))
+
+    def test_rejects_verbose_or_filler_output(self):
+        self.assertIn("4–8", validate_generated_publication({
+            "brief_headline": "This headline contains far too many words for the required single line hook",
+            "public_summary": ["Six word bullet fits this test now"] * 3,
+        }))
+        self.assertIn("prohibited", validate_generated_publication({
+            "brief_headline": "Meta Vision Meets Compute Reality",
+            "public_summary": [
+                "The article explains Meta’s broad artificial intelligence vision",
+                "Critics cite infrastructure constraints and difficult resource realities",
+                "Available computing power may limit Meta’s ambitious roadmap",
+            ],
+        }))
 
 
 class PublishQueueTransactionTests(unittest.TestCase):

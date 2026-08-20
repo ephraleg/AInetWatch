@@ -11,7 +11,12 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
   `data/approved-queue.json` list before the full static site is rebuilt.
 - Removes checked stories from Publish Queue only after deployment succeeds; a
   failed deployment restores the published list and leaves the queue intact.
-- Generates tooltip/category/tag recommendations only during publication editing.
+- Generates the AINWA headline, tooltip, category, and tag recommendations only during publication editing.
+- Constrains generated AINWA headlines to a factual, hook-oriented 4–8 words and
+  tooltip summaries to 3–4 concise phrase bullets of 6–12 words each.
+- Shows the original headline above the editable AINWA headline for comparison.
+- Places source attribution inside the public story's expanded tooltip instead of
+  displaying it beneath the headline.
 - Tracks provider token usage without making an additional AI request.
 - Starts sourcing only after the editor clicks **Source** and confirms; the launcher never starts it automatically.
 - Shows live Source stages and elapsed time, and disables overlapping operations.

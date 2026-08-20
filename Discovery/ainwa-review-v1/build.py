@@ -157,9 +157,11 @@ def _render_tooltip(story: dict, tip_prefix: str) -> str:
     if not isinstance(bullets, list):
         bullets = []
     category = esc(approved.get("category") or "")
+    source_name = esc((story.get("source") or {}).get("name") or "")
     tip_id = f"tip-{esc(tip_prefix)}-{esc(sid)}"
     bullet_html = "".join(f"<li>{esc(b)}</li>" for b in bullets[:5])
     tag_html = f'<span class="tag">{category}</span>' if category else ""
+    source_html = f'<span class="source">Source: {source_name}</span>' if source_name else ""
     return (
         f'<input type="checkbox" id="{tip_id}" class="tip-toggle">\n'
         f'<label for="{tip_id}" class="tip-indicator" aria-label="Show summary">Summary ⓘ</label>\n'
@@ -167,7 +169,7 @@ def _render_tooltip(story: dict, tip_prefix: str) -> str:
         f'  <div class="tooltip-head">'
         f'<img src="CypherFavicon.jpg" alt=""><strong>Here\'s the summary</strong></div>\n'
         f'  <ul>{bullet_html}</ul>\n'
-        f'  <div class="tags">{tag_html}</div>\n'
+        f'  <div class="tags">{tag_html}{source_html}</div>\n'
         f'</div>'
     )
 
@@ -189,7 +191,6 @@ def _render_link(story: dict) -> str:
 
 def render_top_story(story: dict) -> str:
     sid = esc(story.get("id") or "")
-    source = story.get("source", {})
     approved = story.get("approved", {})
     dev_tag = '<span class="developing-tag">Developing</span>\n          ' if approved.get("developing") else ""
     return (
@@ -198,7 +199,6 @@ def render_top_story(story: dict) -> str:
         f'      <div class="top-story-body" data-story-id="{sid}" data-top-story="true">\n'
         f'        <div class="story-text">\n'
         f'          {dev_tag}{_render_link(story)}\n'
-        f'          <span class="source">{esc(source.get("name") or "")}</span>\n'
         f'          {_render_tooltip(story, "top")}\n'
         f'        </div>\n'
         f'      </div>\n'
@@ -208,14 +208,12 @@ def render_top_story(story: dict) -> str:
 
 def render_developing_strip(story: dict) -> str:
     sid = esc(story.get("id") or "")
-    source = story.get("source", {})
     return (
         f'\n    <section class="developing-strip-section" aria-labelledby="developing-heading">\n'
         f'      <h2 id="developing-heading" class="visually-hidden">Developing</h2>\n'
         f'      <div class="developing-strip" data-story-id="{sid}" data-developing="true">\n'
         f'        <span class="developing-tag">Developing</span>\n'
         f'        {_render_link(story)}\n'
-        f'        <span class="source">{esc(source.get("name") or "")}</span>\n'
         f'        {_render_tooltip(story, "dev")}\n'
         f'      </div>\n'
         f'    </section>\n'
@@ -224,12 +222,10 @@ def render_developing_strip(story: dict) -> str:
 
 def render_wire_story(story: dict, col_idx: int) -> str:
     sid = esc(story.get("id") or "")
-    source = story.get("source", {})
     return (
         f'          <div class="story" data-story-id="{sid}">\n'
         f'            <div class="story-body"><div class="story-text">\n'
         f'              {_render_link(story)}\n'
-        f'              <span class="source">{esc(source.get("name") or "")}</span>\n'
         f'              {_render_tooltip(story, f"c{col_idx}")}\n'
         f'            </div></div>\n'
         f'          </div>\n'

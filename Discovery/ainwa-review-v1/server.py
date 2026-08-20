@@ -19,6 +19,7 @@ import copy
 import fcntl
 import json
 import os
+import re
 import secrets
 import subprocess
 import hashlib
@@ -289,6 +290,27 @@ def normalized_proposal(candidate: dict) -> dict:
         "why_selected": proposal.get("why_selected") or candidate.get("claude_rationale") or candidate.get("selection_rationale") or "",
         "duplicate_note": proposal.get("duplicate_note") or candidate.get("duplicate_note") or candidate.get("corroboration") or "",
     }
+
+
+def phrase_word_count(value) -> int:
+    return len(re.findall(r"[\w’'-]+", str(value or ""), flags=re.UNICODE))
+
+
+def validate_generated_publication(generated: dict) -> str | None:
+    headline = str(generated.get("brief_headline") or generated.get("headline") or "").strip()
+    if not 4 <= phrase_word_count(headline) <= 8:
+        return "AI headline must contain 4–8 words"
+    bullets = generated.get("public_summary")
+    if not isinstance(bullets, list) or not 3 <= len(bullets) <= 4:
+        return "AI tooltip must contain 3–4 bullets"
+    filler = ("the article", "the piece", "analysis argues", "commentary highlights", "the report discusses")
+    for bullet in bullets:
+        words = phrase_word_count(bullet)
+        if not 6 <= words <= 12:
+            return "each AI tooltip bullet must contain 6–12 words"
+        if str(bullet).strip().lower().startswith(filler):
+            return "AI tooltip used prohibited article-summary filler"
+    return None
 
 
 def make_approved(candidate: dict, edits: dict) -> dict:
@@ -790,11 +812,15 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(edits, dict):
                 status, result = 400, {"error": "edits must be a JSON object"}
             else:
-                try:
-                    story = CONTROL.update_story(str(body.get("id") or ""), edits)
-                    status, result = 200, {"ok": True, "story": story}
-                except KeyError:
-                    status, result = 404, {"error": "story not found"}
+                validation_error = validate_generated_publication(edits)
+                if validation_error:
+                    status, result = 400, {"error": validation_error.replace("AI ", "")}
+                else:
+                    try:
+                        story = CONTROL.update_story(str(body.get("id") or ""), edits)
+                        status, result = 200, {"ok": True, "story": story}
+                    except KeyError:
+                        status, result = 404, {"error": "story not found"}
         elif path == "/api/control/clear":
             try:
                 status, result = 200, {"ok": True, **CONTROL.clear(str(body.get("location") or ""))}
@@ -962,15 +988,28 @@ class Handler(BaseHTTPRequestHandler):
             "source": source,
             "original_headline": story.get("original_headline") or story.get("headline"),
             "existing_proposal": proposal,
-            "instructions": "Write 2-5 short phrase bullets. Also recommend category, social hashtags, importance, headliner, and developing. Qualify claims when evidence is limited.",
+            "instructions": (
+                "Write one Drudge-inspired but accuracy-controlled AINWA headline: exactly 4-8 words, "
+                "normally one line, built around the strongest factual hook, tension, consequence, reversal, "
+                "scale, or constraint. Use concrete nouns and forceful verbs. Avoid generic filler and do not "
+                "manufacture controversy or certainty. Attribute criticism or commentary, including with a short "
+                "colon construction when useful. Then write 3-4 tooltip bullets of 6-12 words each: concise phrases, "
+                "not mini-paragraphs; cover the core point, tension, practical limit, and optional consequence. "
+                "Never begin with 'the article', 'the piece', 'analysis argues', 'commentary highlights', or similar "
+                "framing. Do not repeat a point. Also recommend category, social hashtags, importance, headliner, "
+                "and developing. Qualify claims when evidence is limited."
+            ),
         }, ensure_ascii=False)
-        schema = '{"public_summary":["..."],"category":"...","social_tags":["#..."],"priority":"Critical|High|Medium|Low","top_story":false,"developing":false,"limited_evidence":true}'
+        schema = '{"brief_headline":"4-8 word hook","public_summary":["6-12 word phrase","6-12 word phrase","6-12 word phrase"],"category":"...","social_tags":["#..."],"priority":"Critical|High|Medium|Low","top_story":false,"developing":false,"limited_evidence":true}'
         try:
             generated, usage = configured_provider().generate_json("generate_tooltip", prompt, schema)
         except AIProviderError as exc:
             return 502, {"error": str(exc)}
-        if not isinstance(generated.get("public_summary"), list) or not 2 <= len(generated["public_summary"]) <= 5:
-            return 502, {"error": "AI response failed summary validation"}
+        validation_error = validate_generated_publication(generated)
+        if validation_error:
+            return 502, {"error": validation_error}
+        generated["brief_headline"] = str(generated.get("brief_headline") or generated.get("headline")).strip()
+        generated["headline"] = generated["brief_headline"]
         priority = str(generated.get("priority") or "")
         if priority not in {"Critical", "High", "Medium", "Low"}:
             return 502, {"error": "AI response failed priority validation"}
