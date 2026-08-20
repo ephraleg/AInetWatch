@@ -7,6 +7,10 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
 - Presents Scanned, Candidates, Standby, and Editorial at 18/18/18/46 desktop widths.
 - Keeps a story in exactly one workflow location at a time.
 - Uses a checked Publish Queue and explicit confirmation before deployment.
+- Treats Publish Queue as incremental: checked stories are added to the cumulative
+  `data/approved-queue.json` list before the full static site is rebuilt.
+- Removes checked stories from Publish Queue only after deployment succeeds; a
+  failed deployment restores the published list and leaves the queue intact.
 - Generates tooltip/category/tag recommendations only during publication editing.
 - Tracks provider token usage without making an additional AI request.
 - Starts sourcing only after the editor clicks **Source** and confirms; the launcher never starts it automatically.

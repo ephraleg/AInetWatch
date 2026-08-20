@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -69,6 +70,8 @@ class StaticUITests(unittest.TestCase):
         self.assertIn('class="pub"', self.html)
         self.assertIn("Load Last Scan", self.html)
         self.assertIn("watchOperation", self.html)
+        self.assertIn("Currently published:", self.html)
+        self.assertIn("After publishing:", self.html)
 
     def test_server_preserves_security_and_reuses_publish_script(self):
         server = (Path(__file__).parent / "server.py").read_text()
@@ -78,6 +81,8 @@ class StaticUITests(unittest.TestCase):
         self.assertIn("MAX_BODY_BYTES", server)
         self.assertIn('ROOT / "publish.sh"', server)
         self.assertIn("PUBLISH_LOCK.acquire(blocking=False)", server)
+        self.assertIn("published_count", server)
+        self.assertIn("original_approved_payload", server)
 
     def test_launcher_loads_runtime_path_and_cloudflare_keychain_credentials(self):
         launcher = (Path(__file__).parent / "AINWA.command").read_text()
@@ -119,6 +124,41 @@ class SourceRecoveryTests(unittest.TestCase):
         with patch.object(generate, "_http_post", return_value=response):
             self.assertEqual("[]", generate.call_claude("prompt", "key"))
         self.assertEqual({"input_tokens": 321, "output_tokens": 45}, generate.LAST_CLAUDE_USAGE)
+
+
+class PublishQueueTransactionTests(unittest.TestCase):
+    def _setup(self, root):
+        state = ControlState(root / "runtime")
+        state.ensure()
+        queued = story("new-story")
+        queued["proposal"].update({"brief_headline": "New", "public_summary": ["One", "Two"], "category": "Business"})
+        state.add(queued, "publish_queue")
+        approved_file = root / "published" / "approved-queue.json"
+        approved_file.parent.mkdir()
+        approved_file.write_text(json.dumps({"version": 1, "stories": [{"id": "existing"}]}))
+        return state, approved_file
+
+    def test_success_adds_to_master_then_removes_from_queue(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state, approved_file = self._setup(Path(tmpdir))
+            handler = object.__new__(server.Handler)
+            with patch.object(server, "CONTROL", state), patch.object(server, "APPROVED_FILE", approved_file), patch.dict(os.environ, {"AINWA_PUBLISH_COMMAND": "/usr/bin/true"}):
+                status, result = handler._publish({"ids": ["new-story"]})
+            self.assertEqual(200, status)
+            self.assertEqual(2, len(json.loads(approved_file.read_text())["stories"]))
+            self.assertEqual([], state.snapshot()["publish_queue"])
+            self.assertEqual(1, result["published"])
+
+    def test_failure_restores_master_and_keeps_publish_queue(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            state, approved_file = self._setup(Path(tmpdir))
+            original = json.loads(approved_file.read_text())
+            handler = object.__new__(server.Handler)
+            with patch.object(server, "CONTROL", state), patch.object(server, "APPROVED_FILE", approved_file), patch.dict(os.environ, {"AINWA_PUBLISH_COMMAND": "/usr/bin/false"}):
+                status, _result = handler._publish({"ids": ["new-story"]})
+            self.assertEqual(502, status)
+            self.assertEqual(original, json.loads(approved_file.read_text()))
+            self.assertEqual(["new-story"], [s["id"] for s in state.snapshot()["publish_queue"]])
 
 
 if __name__ == "__main__":

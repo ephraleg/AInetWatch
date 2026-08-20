@@ -15,6 +15,7 @@ against, and docs/hardening-2026-08-13.md-equivalent notes in README.md.
 from __future__ import annotations
 
 import argparse
+import copy
 import fcntl
 import json
 import os
@@ -40,7 +41,9 @@ ROOT = Path(__file__).resolve().parent
 RUNTIME_ROOT = Path(os.environ.get("AINWA_DATA_DIR", ROOT / "data")).expanduser().resolve()
 DATA_DIR = (RUNTIME_ROOT / "state") if os.environ.get("AINWA_DATA_DIR") else RUNTIME_ROOT
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
-APPROVED_FILE = DATA_DIR / "approved-queue.json"
+# Published Stories are cumulative website state, not workflow state. Keep one
+# authoritative file regardless of where Scanned/Candidates/Standby are stored.
+APPROVED_FILE = ROOT / "data" / "approved-queue.json"
 LOG_FILE = DATA_DIR / "review-log.json"
 INDEX_FILE = ROOT / "index.html"
 
@@ -593,7 +596,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/control":
             try:
                 payload = CONTROL.snapshot()
-                payload.update({"csrf_token": CSRF_TOKEN, "operation": dict(OPERATION_STATUS)})
+                published = approved_list(read_json_checked(APPROVED_FILE, {"stories": []}))
+                payload.update({"csrf_token": CSRF_TOKEN, "operation": dict(OPERATION_STATUS), "published_count": len(published)})
                 self._json(200, payload)
             except (ValueError, QueueFileError, json.JSONDecodeError) as exc:
                 self._json(409, {"error": str(exc)})
@@ -979,6 +983,9 @@ class Handler(BaseHTTPRequestHandler):
             return 400, {"error": "select at least one story"}
         if not PUBLISH_LOCK.acquire(blocking=False):
             return 409, {"error": "a publish is already running"}
+        original_approved_payload = None
+        approved_was_written = False
+        deployment_succeeded = False
         try:
             selected = []
             for story_id in ids:
@@ -992,7 +999,8 @@ class Handler(BaseHTTPRequestHandler):
                 return 409, {"error": "only one selected Headliner and one selected Developing story are allowed"}
             with LOCK:
                 apayload = read_json_checked(APPROVED_FILE, {"version": 1, "stories": []})
-                approved = approved_list(apayload)
+                original_approved_payload = copy.deepcopy(apayload)
+                approved = list(approved_list(apayload))
                 existing_ids = {str(s.get("id")) for s in approved}
                 for story in selected:
                     if str(story.get("id")) in existing_ids:
@@ -1000,9 +1008,8 @@ class Handler(BaseHTTPRequestHandler):
                     approved.append(make_approved(story, normalized_proposal(story)))
                 apayload = {"version": 1, "updated_at": now_iso(), "stories": approved}
                 write_json(APPROVED_FILE, apayload)
-            queue = CONTROL._stories("publish_queue")
+                approved_was_written = True
             selected_ids = {str(x) for x in ids}
-            CONTROL._save("publish_queue", [s for s in queue if str(s.get("id")) not in selected_ids])
             command = os.environ.get("AINWA_PUBLISH_COMMAND")
             args = command.split() if command else ["bash", str(ROOT / "publish.sh"), "--deploy"]
             completed = subprocess.run(args, cwd=ROOT, capture_output=True, text=True, timeout=600)
@@ -1011,11 +1018,20 @@ class Handler(BaseHTTPRequestHandler):
             for line in output.splitlines():
                 if "Current Version ID:" in line:
                     version = line.split("Current Version ID:", 1)[1].strip()
-            CONTROL.log("publish", story_ids=list(selected_ids), ok=completed.returncode == 0, version_id=version)
             if completed.returncode:
+                with LOCK:
+                    write_json(APPROVED_FILE, original_approved_payload)
+                CONTROL.log("publish", story_ids=list(selected_ids), ok=False, version_id=version)
                 return 502, {"error": "publish command failed", "output": output}
+            deployment_succeeded = True
+            queue = CONTROL._stories("publish_queue")
+            CONTROL._save("publish_queue", [s for s in queue if str(s.get("id")) not in selected_ids])
+            CONTROL.log("publish", story_ids=list(selected_ids), ok=True, version_id=version)
             return 200, {"ok": True, "published": len(selected), "output": output, "version_id": version}
         except (OSError, subprocess.TimeoutExpired, QueueFileError) as exc:
+            if approved_was_written and not deployment_succeeded and original_approved_payload is not None:
+                with LOCK:
+                    write_json(APPROVED_FILE, original_approved_payload)
             CONTROL.log("publish", story_ids=ids, ok=False, error=str(exc))
             return 502, {"error": str(exc)}
         finally:
@@ -1071,6 +1087,7 @@ def main():
     if args.data_dir:
         DATA_DIR = Path(args.data_dir).resolve()
         CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
+        # Tests and explicitly isolated runs keep all state in the override.
         APPROVED_FILE = DATA_DIR / "approved-queue.json"
         LOG_FILE = DATA_DIR / "review-log.json"
         CONTROL = ControlState(DATA_DIR)

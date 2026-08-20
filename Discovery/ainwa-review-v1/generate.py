@@ -36,6 +36,8 @@ _RUNTIME = os.environ.get("AINWA_DATA_DIR")
 DATA_DIR = Path(_RUNTIME).expanduser().resolve() / "state" if _RUNTIME else ROOT / "data"
 FILTERED_FILE = DATA_DIR / "filtered-discovery.json"
 APPROVED_FILE = DATA_DIR / "approved-queue.json"
+if _RUNTIME:
+    APPROVED_FILE = ROOT / "data" / "approved-queue.json"
 CANDIDATES_FILE = DATA_DIR / "candidate-queue.json"
 
 MAX_CANDIDATES = 20          # hard ceiling on final shortlist (target 15–20)

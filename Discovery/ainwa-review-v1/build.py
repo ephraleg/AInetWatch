@@ -34,8 +34,9 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parent.parent
-_RUNTIME = os.environ.get("AINWA_DATA_DIR")
-DATA_DIR = Path(_RUNTIME).expanduser().resolve() / "state" if _RUNTIME else ROOT / "data"
+# The website is always built from the cumulative Published Stories list.
+# AINWA_DATA_DIR contains workflow state and must never replace this source.
+DATA_DIR = ROOT / "data"
 TEMPLATE_FILE = REPO_ROOT / "index-live-content.html"
 OUTPUT_DIR = REPO_ROOT
 
