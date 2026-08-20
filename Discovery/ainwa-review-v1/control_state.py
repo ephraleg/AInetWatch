@@ -4,10 +4,24 @@ from __future__ import annotations
 import json
 import os
 import threading
+import fcntl
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
 WORKFLOW_LOCK = threading.RLock()
+
+
+@contextmanager
+def file_lock(path: Path):
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with lock_path.open("w") as fd:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
 
 
 def now_iso() -> str:
@@ -206,13 +220,14 @@ class ControlState:
         write_json(self.files["events"], payload)
 
     def record_usage(self, operation, provider, model, input_tokens=0, output_tokens=0, estimated_cost=0.0):
-        payload = read_json(self.files["usage"], {"version": 1, "events": []})
-        payload.setdefault("events", []).append({
-            "at": now_iso(), "operation": operation, "provider": provider, "model": model,
-            "input_tokens": int(input_tokens or 0), "output_tokens": int(output_tokens or 0),
-            "estimated_cost": round(float(estimated_cost or 0), 6),
-        })
-        write_json(self.files["usage"], payload)
+        with file_lock(self.files["usage"]):
+            payload = read_json(self.files["usage"], {"version": 1, "events": []})
+            payload.setdefault("events", []).append({
+                "at": now_iso(), "operation": operation, "provider": provider, "model": model,
+                "input_tokens": int(input_tokens or 0), "output_tokens": int(output_tokens or 0),
+                "estimated_cost": round(float(estimated_cost or 0), 6),
+            })
+            write_json(self.files["usage"], payload)
 
     def usage_today(self):
         today = datetime.now(timezone.utc).date().isoformat()

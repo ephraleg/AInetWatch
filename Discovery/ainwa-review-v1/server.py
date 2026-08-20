@@ -46,8 +46,9 @@ INDEX_FILE = ROOT / "index.html"
 
 LOCK = threading.Lock()
 PUBLISH_LOCK = threading.Lock()
+OPERATION_LOCK = threading.Lock()
 CONTROL = ControlState(RUNTIME_ROOT)
-OPERATION_STATUS = {"running": False, "stage": "idle", "message": "Ready", "updated_at": None}
+OPERATION_STATUS = {"running": False, "stage": "idle", "message": "Ready", "started_at": None, "updated_at": None}
 
 MAX_BODY_BYTES = 1_000_000  # 1 MB — POST body size limit (finding #4)
 
@@ -711,7 +712,7 @@ class Handler(BaseHTTPRequestHandler):
         control_paths = {
             "/api/control/move", "/api/control/edit", "/api/control/clear",
             "/api/control/reject", "/api/control/generate-tooltip", "/api/control/publish",
-            "/api/control/manual", "/api/control/source", "/api/control/lazy-update",
+            "/api/control/manual", "/api/control/source", "/api/control/recover-scan", "/api/control/lazy-update",
         }
         if path not in {"/api/review", "/api/manual"} | control_paths:
             self.send_error(404)
@@ -807,6 +808,8 @@ class Handler(BaseHTTPRequestHandler):
             status, result = self._control_manual(body)
         elif path == "/api/control/source":
             status, result = self._source()
+        elif path == "/api/control/recover-scan":
+            status, result = self._recover_scan()
         elif path == "/api/control/lazy-update":
             status, result = self._lazy_update()
         elif path == "/api/control/publish":
@@ -832,11 +835,58 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError as exc:
             return 409, {"error": str(exc)}
 
+    def _populate_scanned_from_filtered(self):
+        filtered = read_json_checked(DATA_DIR / "filtered-discovery.json", {"items": []})
+        items = filtered.get("items", []) if isinstance(filtered, dict) else []
+        if not items:
+            raise ValueError("No saved filtered scan is available")
+
+        snapshot = CONTROL.snapshot()
+        excluded_ids = set()
+        excluded_urls = set()
+        for location in CONTROL.LOCATIONS:
+            for story in snapshot[location]:
+                excluded_ids.add(str(story.get("id") or ""))
+                url = normalized_source(story).get("url")
+                if url:
+                    excluded_urls.add(_canonical_url(url))
+
+        # Reuse candidate generation's deterministic, source-aware preselection.
+        # This ranks the saved pool without making an AI or network call.
+        from generate import build_selection_prompt
+        ranked, _ = build_selection_prompt(items, excluded_urls)
+        added = 0
+        duplicate_count = 0
+        for item in ranked:
+            if added >= 60:
+                break
+            url = item.get("canonical_url") or item.get("item_url") or ""
+            sid = str(item.get("item_id") or ("scan-" + hashlib.sha256(url.encode()).hexdigest()[:16]))
+            if not is_http_url(url) or sid in excluded_ids or _canonical_url(url) in excluded_urls:
+                duplicate_count += 1
+                continue
+            scan_story = {
+                "id": sid, "status": "scanned", "original_headline": item.get("item_title") or "",
+                "published_at": item.get("item_published") or "", "discovered_at": item.get("fetched_at") or now_iso(),
+                "source": {"name": item.get("source_name") or "", "url": url, "role": item.get("source_role") or "", "reliability": item.get("source_reliability") or "", "paywall": bool(item.get("paywall", False))},
+                "proposal": {"priority": str(item.get("source_priority") or "medium").title(), "public_summary": []},
+            }
+            try:
+                CONTROL.add(scan_story, "scanned")
+            except ValueError:
+                duplicate_count += 1
+                continue
+            excluded_ids.add(sid)
+            excluded_urls.add(_canonical_url(url))
+            added += 1
+        return {"scanned_added": added, "duplicates_excluded": duplicate_count, "filtered_available": len(items)}
+
     def _source(self):
-        if OPERATION_STATUS["running"]:
+        if not OPERATION_LOCK.acquire(blocking=False):
             return 409, {"error": "another operation is already running"}
+        started_at = now_iso()
+        OPERATION_STATUS.update(running=True, stage="starting", message="Starting Source run", started_at=started_at, updated_at=started_at)
         def run():
-            OPERATION_STATUS.update(running=True, stage="fetching", message="Fetching sources", updated_at=now_iso())
             try:
                 before_ids = {str(s.get("id")) for s in CONTROL._stories("candidates")}
                 for stage, script in (("fetching", "ingest.py"), ("deduplicating", "filter.py"), ("selecting", "generate.py")):
@@ -846,32 +896,35 @@ class Handler(BaseHTTPRequestHandler):
                         raise RuntimeError((completed.stderr or completed.stdout)[-2000:])
                 payload = read_json_checked(CANDIDATES_FILE, {"candidates": []})
                 candidates = candidate_list(payload)
-                candidate_urls = {_canonical_url(normalized_source(s).get("url")) for s in candidates if normalized_source(s).get("url")}
                 added = len({str(s.get("id")) for s in candidates} - before_ids)
-                filtered = read_json_checked(DATA_DIR / "filtered-discovery.json", {"items": []})
-                scanned_added = 0
-                for item in (filtered.get("items", []) if isinstance(filtered, dict) else [])[:60]:
-                    url = item.get("canonical_url") or item.get("item_url") or ""
-                    if not is_http_url(url) or _canonical_url(url) in candidate_urls:
-                        continue
-                    sid = str(item.get("item_id") or "scan-" + hashlib.sha256(url.encode()).hexdigest()[:16])
-                    scan_story = {
-                        "id": sid, "status": "scanned", "original_headline": item.get("item_title") or "",
-                        "published_at": item.get("item_published") or "", "discovered_at": item.get("fetched_at") or now_iso(),
-                        "source": {"name": item.get("source_name") or "", "url": url, "role": item.get("source_role") or "", "reliability": item.get("source_reliability") or "", "paywall": bool(item.get("paywall", False))},
-                        "proposal": {"priority": str(item.get("source_priority") or "medium").title(), "public_summary": []},
-                    }
-                    try:
-                        CONTROL.add(scan_story, "scanned"); scanned_added += 1
-                    except ValueError:
-                        pass
-                CONTROL.log("source", ok=True, scanned_added=scanned_added, candidates_added=added)
-                OPERATION_STATUS.update(running=False, stage="complete", message=f"Source complete · {scanned_added} Scanned · {added} Candidates added", updated_at=now_iso())
+                OPERATION_STATUS.update(stage="populating", message="Populating Scanned column", updated_at=now_iso())
+                scan_result = self._populate_scanned_from_filtered()
+                CONTROL.log("source", ok=True, candidates_added=added, **scan_result)
+                OPERATION_STATUS.update(running=False, stage="complete", message=f"Source complete · {scan_result['scanned_added']} Scanned · {added} Candidates added", updated_at=now_iso())
             except Exception as exc:
                 CONTROL.log("source", ok=False, error=str(exc))
                 OPERATION_STATUS.update(running=False, stage="error", message=f"Source failed: {exc}", updated_at=now_iso())
+            finally:
+                OPERATION_LOCK.release()
         threading.Thread(target=run, daemon=True).start()
         return 202, {"ok": True, "started": True}
+
+    def _recover_scan(self):
+        if not OPERATION_LOCK.acquire(blocking=False):
+            return 409, {"error": "another operation is already running"}
+        started_at = now_iso()
+        OPERATION_STATUS.update(running=True, stage="recovering", message="Loading last saved scan · no AI call", started_at=started_at, updated_at=started_at)
+        try:
+            result = self._populate_scanned_from_filtered()
+            CONTROL.log("recover_scan", ok=True, **result)
+            OPERATION_STATUS.update(running=False, stage="complete", message=f"Last scan loaded · {result['scanned_added']} Scanned · no AI call", updated_at=now_iso())
+            return 200, {"ok": True, **result}
+        except (ValueError, QueueFileError) as exc:
+            CONTROL.log("recover_scan", ok=False, error=str(exc))
+            OPERATION_STATUS.update(running=False, stage="error", message=f"Recovery failed: {exc}", updated_at=now_iso())
+            return 409, {"error": str(exc)}
+        finally:
+            OPERATION_LOCK.release()
 
     def _lazy_update(self):
         candidates = CONTROL._stories("candidates")

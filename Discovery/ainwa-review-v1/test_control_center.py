@@ -2,7 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
+import generate
+import server
 from control_state import ControlState
 
 
@@ -64,10 +67,13 @@ class StaticUITests(unittest.TestCase):
         for text in ("Clear Scanned", "Clear Candidates", "Clear Standby"):
             self.assertIn(text, self.html)
         self.assertIn('class="pub"', self.html)
+        self.assertIn("Load Last Scan", self.html)
+        self.assertIn("watchOperation", self.html)
 
     def test_server_preserves_security_and_reuses_publish_script(self):
         server = (Path(__file__).parent / "server.py").read_text()
         self.assertIn('"/api/control/publish"', server)
+        self.assertIn('"/api/control/recover-scan"', server)
         self.assertIn('"X-AINWA-CSRF-Token"', server)
         self.assertIn("MAX_BODY_BYTES", server)
         self.assertIn('ROOT / "publish.sh"', server)
@@ -79,6 +85,40 @@ class StaticUITests(unittest.TestCase):
         self.assertIn('AINWA_CLOUDFLARE_API_TOKEN', launcher)
         self.assertIn('AINWA_CLOUDFLARE_ACCOUNT_ID', launcher)
         self.assertNotIn('echo "$CLOUDFLARE', launcher)
+        self.assertNotIn('python3 "$AINWA_DIR/ingest.py"', launcher)
+        self.assertNotIn("SOURCING_PID_FILE", launcher)
+
+
+class SourceRecoveryTests(unittest.TestCase):
+    def test_recovery_populates_60_without_candidates_or_duplicates(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            state = ControlState(root)
+            state.ensure()
+            state.add(story("candidate"), "candidates")
+            items = [{
+                "item_id": "candidate" if i == 0 else f"scan-{i}",
+                "canonical_url": "https://example.com/candidate" if i == 0 else f"https://news.example/{i}",
+                "item_url": "https://example.com/candidate" if i == 0 else f"https://news.example/{i}",
+                "item_title": f"Story {i}", "source_name": f"News {i}",
+                "source_priority": "high", "source_role": "Original Reporting",
+                "source_reliability": "high", "age_hours": float(i),
+            } for i in range(80)]
+            (root / "state" / "filtered-discovery.json").write_text(json.dumps({"items": items}))
+            handler = object.__new__(server.Handler)
+            with patch.object(server, "CONTROL", state), patch.object(server, "DATA_DIR", root / "state"):
+                result = handler._populate_scanned_from_filtered()
+            snapshot = state.snapshot()
+            self.assertEqual(60, result["scanned_added"])
+            self.assertEqual(60, len(snapshot["scanned"]))
+            self.assertNotIn("candidate", [item["id"] for item in snapshot["scanned"]])
+            self.assertEqual(1, len(snapshot["candidates"]))
+
+    def test_claude_usage_is_captured_from_provider_response(self):
+        response = {"content": [{"text": "[]"}], "usage": {"input_tokens": 321, "output_tokens": 45}}
+        with patch.object(generate, "_http_post", return_value=response):
+            self.assertEqual("[]", generate.call_claude("prompt", "key"))
+        self.assertEqual({"input_tokens": 321, "output_tokens": 45}, generate.LAST_CLAUDE_USAGE)
 
 
 if __name__ == "__main__":

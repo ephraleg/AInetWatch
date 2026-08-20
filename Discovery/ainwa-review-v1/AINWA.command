@@ -4,22 +4,18 @@
 # Double-click in Finder (or run in Terminal) to:
 #   1. Start the review server (server.py) if not already running
 #   2. Wait until the console is reachable, then open it in the default browser
-#   3. Run the sourcing pipeline (ingest → filter → generate) in the background,
-#      if ANTHROPIC_API_KEY is set and no sourcing run is already in progress
+#   3. Leave sourcing under explicit human control in the web interface
 #
-# Server and sourcing run independently; killing one does not affect the other.
 # API keys: environment takes priority; falls back to macOS Keychain (AINWA_ANTHROPIC_API_KEY).
-# Logs: logs/server.log  logs/sourcing.log  (relative to this file)
-# PIDs: logs/server.pid  logs/sourcing.pid
+# Logs: logs/server.log (relative to this file)
+# PIDs: logs/server.pid
 
 AINWA_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOGS_DIR="$AINWA_DIR/logs"
 export AINWA_DATA_DIR="${AINWA_DATA_DIR:-$HOME/DevOps/AINWAdata}"
 SERVER_URL="http://127.0.0.1:8765"
 SERVER_PID_FILE="$LOGS_DIR/server.pid"
-SOURCING_PID_FILE="$LOGS_DIR/sourcing.pid"
 SERVER_LOG="$LOGS_DIR/server.log"
-SOURCING_LOG="$LOGS_DIR/sourcing.log"
 
 mkdir -p "$LOGS_DIR"
 
@@ -59,12 +55,6 @@ pid_is_alive() {
 server_is_running() {
   local pid
   pid=$(cat "$SERVER_PID_FILE" 2>/dev/null) || true
-  [[ -n "$pid" ]] && pid_is_alive "$pid"
-}
-
-sourcing_is_running() {
-  local pid
-  pid=$(cat "$SOURCING_PID_FILE" 2>/dev/null) || true
   [[ -n "$pid" ]] && pid_is_alive "$pid"
 }
 
@@ -108,32 +98,4 @@ fi
 echo "[AINWA] Review console ready. Opening browser…"
 open "$SERVER_URL"
 
-# ---------------------------------------------------------------------------
-# 3. Start sourcing pipeline if not already running
-# ---------------------------------------------------------------------------
-
-if sourcing_is_running; then
-  echo "[AINWA] Sourcing already in progress (PID $(cat "$SOURCING_PID_FILE")). Skipping."
-elif [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
-  echo "[AINWA] WARNING: ANTHROPIC_API_KEY is not set — sourcing pipeline will not run." >&2
-  echo "[AINWA] The review console is open and fully usable without sourcing." >&2
-else
-  rm -f "$SOURCING_PID_FILE"
-  echo "[AINWA] Starting sourcing pipeline in background… Log → $SOURCING_LOG"
-  (
-    trap 'rm -f "$SOURCING_PID_FILE"' EXIT
-    {
-      echo "=== AINWA sourcing started $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
-      python3 "$AINWA_DIR/ingest.py"   && \
-      python3 "$AINWA_DIR/filter.py"   && \
-      python3 "$AINWA_DIR/generate.py" && \
-      echo "=== Sourcing complete $(date -u '+%Y-%m-%dT%H:%M:%SZ') ===" || \
-      echo "=== Sourcing FAILED $(date -u '+%Y-%m-%dT%H:%M:%SZ') ==="
-    } >> "$SOURCING_LOG" 2>&1
-  ) &
-  SOURCING_PID=$!
-  echo "$SOURCING_PID" > "$SOURCING_PID_FILE"
-  echo "[AINWA] Sourcing started (PID $SOURCING_PID)."
-fi
-
-echo "[AINWA] Done. Review console: $SERVER_URL"
+echo "[AINWA] Done. Use the Source button to start sourcing: $SERVER_URL"

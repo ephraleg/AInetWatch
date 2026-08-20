@@ -59,6 +59,7 @@ DIVERSITY_PER_SOURCE_MAX = 3   # any source except Discovery Only
 DIVERSITY_DISCOVERY_ONLY_MAX = 1  # Discovery Only sources contribute at most 1 slot
 
 CARRYOVER_DAYS = 3  # unresolved candidates from prior runs survive this many days
+LAST_CLAUDE_USAGE: dict = {}
 
 
 def now_iso() -> str:
@@ -149,6 +150,8 @@ def call_claude(prompt: str, api_key: str, model: str = "claude-sonnet-4-6") -> 
         },
         timeout=CLAUDE_TIMEOUT_SECONDS,
     )
+    global LAST_CLAUDE_USAGE
+    LAST_CLAUDE_USAGE = dict(resp.get("usage") or {})
     return resp["content"][0]["text"]
 
 
@@ -686,6 +689,15 @@ def main(argv=None):
     except Exception as exc:
         print(f"[AINWA] Claude API error: {exc}", file=sys.stderr)
         return 1
+
+    if _RUNTIME and LAST_CLAUDE_USAGE:
+        from control_state import ControlState
+        ControlState(Path(_RUNTIME).expanduser().resolve()).record_usage(
+            "candidate_selection", "anthropic", args.model,
+            LAST_CLAUDE_USAGE.get("input_tokens", 0),
+            LAST_CLAUDE_USAGE.get("output_tokens", 0),
+            0.0,
+        )
 
     try:
         selections = _parse_claude_response(raw_response, item_lookup)

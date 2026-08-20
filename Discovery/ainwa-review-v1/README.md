@@ -9,6 +9,9 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
 - Uses a checked Publish Queue and explicit confirmation before deployment.
 - Generates tooltip/category/tag recommendations only during publication editing.
 - Tracks provider token usage without making an additional AI request.
+- Starts sourcing only after the editor clicks **Source** and confirms; the launcher never starts it automatically.
+- Shows live Source stages and elapsed time, and disables overlapping operations.
+- Can **Load Last Scan** into Scanned without refetching or making another AI call.
 - Shows source, original headline, proposed AInetWatch headline, summary, category, priority, Top Story, Developing, Claude rationale, and duplicate/corroboration notes together.
 - Opens the original source in a separate browser tab.
 - Supports four human decisions:
@@ -182,6 +185,7 @@ stage can be added without a schema migration. As of this pass:
 - No database.
 - No framework or package installation.
 - Publishing is always a foreground human action; background sourcing cannot publish.
+- Sourcing is also a foreground human decision: opening AINWA never starts a sourcing run.
 - Snooze values are stored, but the future ingestion scheduler decides when a snoozed story is reintroduced.
 - Reject reasons are deliberately short so they can later inform source/performance tuning.
 
