@@ -67,7 +67,7 @@
 </script>
 
 <!--
-  FAVICON — generated from the editor-supplied Globe1.jpg artwork.
+  FAVICON — generated from the editor-supplied transparent Globe1.png artwork.
 -->
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -216,26 +216,20 @@
   }
 
   /* ---------- Masthead ---------- */
-  .masthead { padding: 12px 0 8px; border-bottom: 3px solid var(--fg); }
+  .masthead { padding: 8px 0; }
   .masthead-inner {
     max-width: 760px;
     margin: 0 auto;
     position: relative;
     text-align: center;
   }
-  .masthead h1 {
-    margin: 0;
-    font-size: clamp(1.7rem, 5vw, 2.4rem);
-    font-weight: 800;
-    letter-spacing: -0.5px;
-  }
-  .masthead h1 a { color: var(--fg); text-decoration: none; }
-  .tagline {
-    margin: 2px 0 0;
-    font-size: 0.8rem;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--muted);
+  .masthead-logo {
+    display: block;
+    width: min(360px, 72vw);
+    height: 100px;
+    margin: 0 auto;
+    object-fit: cover;
+    object-position: center;
   }
   .cypher-trigger {
     position: absolute;
@@ -488,16 +482,19 @@
     <div class="ad-zone ad-zone--top" id="ad-zone-1" data-ad-zone="1"></div>
   </div>
 
+  <!-- AINWA_MASTHEAD_START -->
   <header class="masthead">
     <div class="masthead-inner">
       <button type="button" id="cypher-trigger" class="cypher-trigger" aria-label="Cypher Says" aria-haspopup="true" aria-expanded="false" aria-controls="cypher-float">
-        <img src="Cypher1.jpg" alt="" width="63" height="63">
+        <img src="Cypher1.png" alt="" width="63" height="63">
         <span class="cypher-label">CYPHER SAYS</span>
       </button>
-      <h1><a href="/">AInetWatch</a></h1>
-      <p class="tagline">The AI News Wire</p>
+      <a href="/" aria-label="AInetWatch — The AI News Wire">
+        <img class="masthead-logo" src="AInetWatchTitle.png" alt="AInetWatch — The AI News Wire" width="360" height="100">
+      </a>
     </div>
   </header>
+  <!-- AINWA_MASTHEAD_END -->
 
   <!--
     Cypher floating talking-head — frameless, transparent video, minimal vanilla JS.

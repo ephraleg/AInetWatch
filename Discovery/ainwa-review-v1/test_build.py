@@ -282,7 +282,18 @@ class TestHomepageTemplateStyling(unittest.TestCase):
         self.assertIn("CYPHER SAYS", self.template)
         self.assertNotIn("ASK CYPHER", self.template)
         self.assertIn("width: 62.5px", self.template)
-        self.assertIn('src="Cypher1.jpg"', self.template)
+        self.assertIn('src="Cypher1.png"', self.template)
+
+    def test_image_masthead_has_no_divider(self):
+        self.assertIn('src="AInetWatchTitle.png"', self.template)
+        self.assertIn(".masthead { padding: 8px 0; }", self.template)
+        self.assertNotIn("border-bottom: 3px solid var(--fg)", self.template)
+
+    def test_headliner_precedes_masthead(self):
+        story = _story("headliner")
+        story["approved"]["top_story"] = True
+        html = build.render_main_content([story], "<header>MASTHEAD</header>")
+        self.assertLess(html.index('class="top-story"'), html.index("MASTHEAD"))
 
     def test_story_card_borders_are_invisible(self):
         self.assertIn(".top-story { padding: 14px 0; border-bottom: none; }", self.template)

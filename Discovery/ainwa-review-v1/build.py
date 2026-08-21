@@ -136,15 +136,25 @@ def _priority_rank(story: dict) -> int:
 # Template chrome loading
 # ---------------------------------------------------------------------------
 
-def load_chrome(template_path: Path) -> tuple[str, str]:
-    """Split template into (head_chrome, tail_chrome) at <main></main>."""
+def load_chrome(template_path: Path) -> tuple[str, str, str]:
+    """Return page chrome plus the masthead, which the homepage repositions."""
     text = template_path.read_text(encoding="utf-8")
+    MASTHEAD_START = "  <!-- AINWA_MASTHEAD_START -->"
+    MASTHEAD_END = "  <!-- AINWA_MASTHEAD_END -->"
+    if MASTHEAD_START in text and MASTHEAD_END in text:
+        masthead_start = text.index(MASTHEAD_START)
+        masthead_end = text.index(MASTHEAD_END) + len(MASTHEAD_END)
+        masthead = text[masthead_start:masthead_end]
+        text = text[:masthead_start] + text[masthead_end:]
+    else:
+        # Small custom/test templates may intentionally omit the masthead.
+        masthead = ""
     HEAD_MARKER = '<main class="wrap">'
     TAIL_MARKER = "</main>"
     head_end = text.index(HEAD_MARKER) + len(HEAD_MARKER)
     # Use rindex so we get the last </main> (the one that closes the page main, not any inside)
     tail_start = text.rindex(TAIL_MARKER)
-    return text[:head_end], text[tail_start:]
+    return text[:head_end], masthead, text[tail_start:]
 
 
 # ---------------------------------------------------------------------------
@@ -245,10 +255,10 @@ def render_wire_story(story: dict, col_idx: int) -> str:
     )
 
 
-def render_main_content(stories: list[dict]) -> str:
+def render_main_content(stories: list[dict], masthead: str = "") -> str:
     """Generate the <main> body for index.html from the 50-story homepage set."""
     if not stories:
-        return '\n    <p style="padding:20px 0">No approved stories yet.</p>\n'
+        return f'\n{masthead}\n    <p style="padding:20px 0">No approved stories yet.</p>\n'
 
     top = next((s for s in stories if s.get("approved", {}).get("top_story")), None)
     developing = next(
@@ -268,6 +278,7 @@ def render_main_content(stories: list[dict]) -> str:
     parts: list[str] = []
     if top:
         parts.append(render_top_story(top))
+    parts.append(masthead)
     if developing:
         parts.append(render_developing_strip(developing))
 
@@ -284,12 +295,12 @@ def render_main_content(stories: list[dict]) -> str:
     return "\n".join(parts)
 
 
-def render_archive_content(stories: list[dict]) -> str:
+def render_archive_content(stories: list[dict], masthead: str = "") -> str:
     """Generate the <main> body for archive.html."""
     if not stories:
-        return '\n    <p style="padding:20px 0">No archive stories yet.</p>\n'
+        return f'\n{masthead}\n    <p style="padding:20px 0">No archive stories yet.</p>\n'
 
-    parts = [
+    parts = [masthead,
         '\n    <section aria-labelledby="archive-heading">',
         '      <h2 id="archive-heading" '
         'style="padding:14px 0 8px;border-bottom:1px solid var(--rule)">Archive</h2>',
@@ -308,7 +319,7 @@ def render_archive_content(stories: list[dict]) -> str:
 
 def build(data_dir: Path, output_dir: Path, template_file: Path, dry_run: bool = False) -> None:
     approved_eligible, archive_only = load_stories(data_dir)
-    head_chrome, tail_chrome = load_chrome(template_file)
+    head_chrome, masthead, tail_chrome = load_chrome(template_file)
 
     # Homepage pool: approved records only, newest first.
     sorted_eligible = sort_by_approved_at(approved_eligible)
@@ -318,8 +329,8 @@ def build(data_dir: Path, output_dir: Path, template_file: Path, dry_run: bool =
     # Archive: homepage overflow + straight-to-archive records, sorted by approved_at desc.
     archive = sort_by_approved_at(overflow + archive_only)
 
-    homepage_html = head_chrome + render_main_content(homepage) + tail_chrome
-    archive_html = head_chrome + render_archive_content(archive) + tail_chrome
+    homepage_html = head_chrome + render_main_content(homepage, masthead) + tail_chrome
+    archive_html = head_chrome + render_archive_content(archive, masthead) + tail_chrome
 
     if dry_run:
         print(
