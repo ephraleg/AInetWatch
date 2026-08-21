@@ -285,6 +285,7 @@ def normalized_proposal(candidate: dict) -> dict:
         # editorial_notes is reviewer-only and must never enter an approved record.
         "editorial_notes": str(proposal.get("editorial_notes") or candidate.get("editorial_notes") or ""),
         "category": proposal.get("category") or candidate.get("category") or "",
+        "social_tags": proposal.get("social_tags") or candidate.get("social_tags") or [],
         "priority": proposal.get("priority") or candidate.get("priority") or candidate.get("priority_score") or "",
         "top_story": bool(proposal.get("top_story", candidate.get("top_story", False))),
         "developing": bool(proposal.get("developing", candidate.get("developing", False))),
@@ -344,6 +345,7 @@ def make_approved(candidate: dict, edits: dict) -> dict:
             # reviewer-only context and is explicitly omitted here.
             "public_summary": public_summary,
             "category": edits.get("category", proposal["category"]),
+            "social_tags": edits.get("social_tags", proposal["social_tags"]),
             "priority": edits.get("priority", proposal["priority"]),
             "top_story": bool(edits.get("top_story", proposal["top_story"])),
             "developing": bool(edits.get("developing", proposal["developing"])),

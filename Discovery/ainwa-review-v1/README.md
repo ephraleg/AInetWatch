@@ -21,6 +21,11 @@ A local, human-controlled sourcing, editorial, and publishing interface for AIne
 - Shows the original headline above the editable AINWA headline for comparison.
 - Places source attribution inside the public story's expanded tooltip instead of
   displaying it beneath the headline.
+- Uses compact source/date tooltip headings, with category and saved social
+  hashtags in the tooltip footer.
+- Uses borderless public story cards and the **Cypher Says** masthead control.
+- Builds the site favicon set from the editor-supplied Globe1 artwork and shows
+  the editor-supplied Cypher1 image 25% larger in the masthead.
 - Shows the source publication date in the editorial edit window and alongside
   the source inside the public expanded tooltip.
 - Shows immediate publishing progress and a visible final success or diagnostic

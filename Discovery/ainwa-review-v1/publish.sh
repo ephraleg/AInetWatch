@@ -32,7 +32,7 @@ ALLOWLIST=(
   favicon.ico
   favicon-32x32.png
   favicon-16x16.png
-  CypherFavicon.jpg
+  Cypher1.jpg
   cypher-transparent-safari.mov
   cypher-transparent-final.webm
 )
@@ -69,7 +69,7 @@ cp "$INDEX"   "$DIST/index.html"
 cp "$ARCHIVE" "$DIST/archive.html"
 
 for asset in favicon.ico favicon-32x32.png favicon-16x16.png \
-             CypherFavicon.jpg cypher-transparent-safari.mov cypher-transparent-final.webm; do
+             Cypher1.jpg cypher-transparent-safari.mov cypher-transparent-final.webm; do
   src="$REPO_ROOT/$asset"
   if [ ! -f "$src" ]; then
     echo "[AINWA] ERROR: required asset missing from dev repo: $asset" >&2

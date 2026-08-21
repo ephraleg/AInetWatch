@@ -67,13 +67,7 @@
 </script>
 
 <!--
-  FAVICON — development-only addition (2026-08-12). Production
-  still has no favicon configuration; this is not
-  a restoration of anything, it's new. Assets generated from
-  CypherFavicon.jpg via sips (PNG resizes) + a hand-built PNG-in-ICO
-  container (no ImageMagick/Pillow available; PNG-compressed ICO
-  entries are a standard, broadly-supported technique). Source artwork
-  (CypherFavicon.jpg) itself was not modified.
+  FAVICON — generated from the editor-supplied Globe1.jpg artwork.
 -->
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -259,8 +253,8 @@
     cursor: pointer;
   }
   .cypher-trigger img {
-    width: 50px;
-    height: 50px;
+    width: 62.5px;
+    height: 62.5px;
     border-radius: 6px;
     display: block;
   }
@@ -274,7 +268,7 @@
   }
 
   /* ---------- Top story ---------- */
-  .top-story { padding: 14px 0; border-bottom: 1px solid var(--rule); }
+  .top-story { padding: 14px 0; border-bottom: none; }
   .developing-tag {
     display: inline-block;
     background: var(--accent);
@@ -317,7 +311,7 @@
     gap: 8px;
     flex-wrap: wrap;
     padding: 10px 0;
-    border-bottom: 1px solid var(--rule);
+    border-bottom: none;
   }
   .developing-strip .headline { font-size: 1rem; }
 
@@ -334,7 +328,7 @@
   .story {
     position: relative;
     padding: 7px 0;
-    border-bottom: 1px solid var(--rule);
+    border-bottom: none;
   }
   .story:last-child { border-bottom: none; }
 
@@ -396,8 +390,7 @@
   .developing-strip .tip-toggle:checked ~ .tooltip {
     display: block;
   }
-  .tooltip-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .tooltip-head img { width: 16px; height: 16px; border-radius: 3px; }
+  .tooltip-head { display: flex; align-items: center; margin-bottom: 6px; }
   .tooltip-head strong { font-size: 0.82rem; }
   .tooltip ul { margin: 0 0 8px; padding-left: 16px; }
   .tooltip li { margin-bottom: 3px; }
@@ -411,6 +404,7 @@
     text-transform: uppercase;
     letter-spacing: 0.3px;
   }
+  .hashtag { color: var(--muted); font-size: 0.68rem; }
 
   /* ---------- Cypher floating talking-head (frameless, vanilla JS — see script at end of body) ---------- */
   .cypher-float {
@@ -482,7 +476,7 @@
     .wire-col:last-child { border-bottom: none; }
     .tip-indicator { display: inline-block; }
     .top-story-img { display: none; }
-    .cypher-trigger img { width: 42px; height: 42px; }
+    .cypher-trigger img { width: 52.5px; height: 52.5px; }
     .cypher-float { width: min(220px, 60vw); top: 66px; right: 8px; }
   }
 </style>
@@ -496,9 +490,9 @@
 
   <header class="masthead">
     <div class="masthead-inner">
-      <button type="button" id="cypher-trigger" class="cypher-trigger" aria-label="Ask Cypher" aria-haspopup="true" aria-expanded="false" aria-controls="cypher-float">
-        <img src="CypherFavicon.jpg" alt="" width="50" height="50">
-        <span class="cypher-label">ASK CYPHER</span>
+      <button type="button" id="cypher-trigger" class="cypher-trigger" aria-label="Cypher Says" aria-haspopup="true" aria-expanded="false" aria-controls="cypher-float">
+        <img src="Cypher1.jpg" alt="" width="63" height="63">
+        <span class="cypher-label">CYPHER SAYS</span>
       </button>
       <h1><a href="/">AInetWatch</a></h1>
       <p class="tagline">The AI News Wire</p>

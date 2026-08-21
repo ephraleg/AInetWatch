@@ -250,15 +250,47 @@ class TestSourcePlacement(unittest.TestCase):
         html = build.render_wire_story(
             _story("source-placement", source_name="Example Newsroom"), 1
         )
-        self.assertEqual(2, html.count('class="source"'))
-        self.assertIn("Source: Example Newsroom", html)
-        self.assertIn("Date: August 1, 2026", html)
+        self.assertEqual(0, html.count('class="source"'))
+        self.assertIn("Example Newsroom 08/01/26", html)
         self.assertGreater(
-            html.index("Source: Example Newsroom"), html.index('class="tooltip"')
+            html.index("Example Newsroom 08/01/26"), html.index('class="tooltip"')
         )
-        self.assertGreater(
-            html.index("Date: August 1, 2026"), html.index('class="tooltip"')
-        )
+
+    def test_tooltip_footer_contains_category_and_social_hashtags(self):
+        story = _story("tooltip-footer")
+        story["approved"]["category"] = "Business"
+        story["approved"]["social_tags"] = ["#Funding", "#EnterpriseAI"]
+        html = build.render_wire_story(story, 1)
+        self.assertIn('<span class="tag">Business</span>', html)
+        self.assertIn('<span class="hashtag">#Funding</span>', html)
+        self.assertIn('<span class="hashtag">#EnterpriseAI</span>', html)
+        self.assertGreater(html.index("#Funding"), html.index("</ul>"))
+
+    def test_tooltip_formats_rfc_feed_date(self):
+        story = _story("rfc-date")
+        story["published_at"] = "Wed, 19 Aug 2026 14:30:00 GMT"
+        html = build.render_wire_story(story, 1)
+        self.assertIn("Example News 08/19/26", html)
+
+
+class TestHomepageTemplateStyling(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.template = build.TEMPLATE_FILE.read_text(encoding="utf-8")
+
+    def test_cypher_label_and_size(self):
+        self.assertIn("CYPHER SAYS", self.template)
+        self.assertNotIn("ASK CYPHER", self.template)
+        self.assertIn("width: 62.5px", self.template)
+        self.assertIn('src="Cypher1.jpg"', self.template)
+
+    def test_story_card_borders_are_invisible(self):
+        self.assertIn(".top-story { padding: 14px 0; border-bottom: none; }", self.template)
+        self.assertRegex(self.template, r"\.story \{[^}]*border-bottom: none;")
+
+    def test_tooltip_has_hashtag_style_and_no_old_heading_icon_rule(self):
+        self.assertIn(".hashtag", self.template)
+        self.assertNotIn(".tooltip-head img", self.template)
 
 
 class TestUrlBlocking(unittest.TestCase):

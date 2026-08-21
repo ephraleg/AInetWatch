@@ -166,6 +166,11 @@ class PublicationGenerationStyleTests(unittest.TestCase):
         approved = server.make_approved(candidate, {})
         self.assertEqual("2026-08-20T09:30:00Z", approved["published_at"])
 
+    def test_approval_preserves_social_hashtags(self):
+        candidate = story("tagged")
+        approved = server.make_approved(candidate, {"social_tags": ["#AI", "#Funding"]})
+        self.assertEqual(["#AI", "#Funding"], approved["approved"]["social_tags"])
+
     def test_accepts_hook_headline_and_concise_phrase_bullets(self):
         generated = {
             "brief_headline": "Critics Challenge Zuckerberg’s AI Compute Vision",
